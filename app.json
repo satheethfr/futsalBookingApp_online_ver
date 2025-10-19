@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "A2 Sports Park",
+    "slug": "a2-sports-park-booking",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.a2sportspark.app",
+      "buildNumber": "1"
+    },
+    "android": {
+      "package": "com.a2sportspark.app",
+      "versionCode": 1,
+      "permissions": []
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-font"
+    ]
+  }
+}
