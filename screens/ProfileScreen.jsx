@@ -1,208 +1,146 @@
-import React, { useState, useEffect, useMemo } from "react";
+// screens/ProfileScreen.jsx
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
+  ScrollView,
   Alert,
-  FlatList,
-  StatusBar,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useApp } from "../context/AppContext";
-import Toast from "react-native-toast-message";
+  ActivityIndicator,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useApp } from '../context/AppContext';
 
-const ProfileScreen = ({ route, navigation }) => {
+export default function ProfileScreen({ route, navigation }) {
   const { customerId } = route.params;
   const {
-    getCustomerById,
-    getUpcomingBookings,
-    getPastBookings,
-    cancelEntireBooking,
+    customers,
+    isOffline,
+    isUsingCache,
+    cancelBooking,
+    completeBooking,
   } = useApp();
 
-  const [displayedPastBookings, setDisplayedPastBookings] = useState([]);
-  const [pastBookingsPage, setPastBookingsPage] = useState(1);
-  const ITEMS_PER_PAGE = 5;
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const customer = getCustomerById(customerId);
-  const upcomingBookings = useMemo(
-    () => getUpcomingBookings(customerId),
-    [customerId]
+  const customer = useMemo(() => 
+    customers.find(c => c.id === customerId), 
+    [customers, customerId]
   );
-  const pastBookings = useMemo(() => getPastBookings(customerId), [customerId]);
 
-  // Update displayed past bookings when pastBookings or page changes
-  useEffect(() => {
-    const startIndex = (pastBookingsPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    setDisplayedPastBookings(pastBookings.slice(startIndex, endIndex));
-  }, [pastBookings, pastBookingsPage]);
+  const upcomingBookings = useMemo(() => 
+    customer ? getUpcomingBookings(customer.id) : [], 
+    [customer]
+  );
 
-  // Calculate total pages for past bookings
-  const getTotalPages = () => {
-    return Math.ceil(pastBookings.length / ITEMS_PER_PAGE);
-  };
+  const pastBookings = useMemo(() => 
+    customer ? getPastBookings(customer.id) : [], 
+    [customer]
+  );
 
-  // Navigate to specific page
-  const goToPage = (page) => {
-    const totalPages = getTotalPages();
-    if (page >= 1 && page <= totalPages) {
-      setPastBookingsPage(page);
+  const { getUpcomingBookings, getPastBookings } = useApp();
+
+  const handleCancelBooking = async (bookingId, timeSlots) => {
+    if (isOffline || isUsingCache) {
+      Alert.alert(
+        'Offline Mode',
+        'This action requires an internet connection.',
+        [{ text: 'OK' }]
+      );
+      return;
     }
-  };
 
-  // Handle booking cancellation
-  const handleCancelBooking = (bookingId) => {
     Alert.alert(
-      "Cancel Booking",
-      "Are you sure you want to cancel this entire booking?",
+      'Cancel Booking',
+      'Are you sure you want to cancel this booking?',
       [
-        { text: "No", style: "cancel" },
-        {
-          text: "Yes",
-          style: "destructive",
-          onPress: () => {
-            cancelEntireBooking(bookingId);
-            Toast.show({
-              type: "success",
-              text1: "Booking Cancelled",
-              text2: "The entire booking has been cancelled",
-            });
-          },
-        },
+        { text: 'No', style: 'cancel' },
+        { text: 'Yes', onPress: async () => {
+          setIsProcessing(true);
+          try {
+            await cancelBooking(bookingId, timeSlots);
+          } catch (error) {
+            Alert.alert('Error', 'Failed to cancel booking');
+          } finally {
+            setIsProcessing(false);
+          }
+        }}
       ]
     );
   };
 
-  // Format date for display (short format like "Mon, Oct 20, 2025")
+  const handleCompleteBooking = async (bookingId) => {
+    if (isOffline || isUsingCache) {
+      Alert.alert(
+        'Offline Mode',
+        'This action requires an internet connection.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Complete Booking',
+      'Mark this booking as completed?',
+      [
+        { text: 'No', style: 'cancel' },
+        { text: 'Yes', onPress: async () => {
+          setIsProcessing(true);
+          try {
+            await completeBooking(bookingId);
+          } catch (error) {
+            Alert.alert('Error', 'Failed to complete booking');
+          } finally {
+            setIsProcessing(false);
+          }
+        }}
+      ]
+    );
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
     });
   };
 
-  // Convert 24-hour format to 12-hour format with AM/PM
-  const formatTimeTo12Hour = (time24) => {
-    const [hours, minutes] = time24.split(":");
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? "PM" : "AM";
-    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${hour12}:${minutes} ${ampm}`;
-  };
-
-  // Get time range for a time slot
-  const getTimeRange = (timeSlot) => {
-    const startTime = formatTimeTo12Hour(timeSlot);
-    const [hours, minutes] = timeSlot.split(":");
-    const endHour = parseInt(hours) + 1;
-    const endTime = formatTimeTo12Hour(
-      `${endHour.toString().padStart(2, "0")}:${minutes}`
-    );
-    return `${startTime} - ${endTime}`;
-  };
-
-  // Get status color
   const getStatusColor = (status) => {
     switch (status) {
-      case "confirmed":
-        return "#34C759";
-      case "completed":
-        return "#34C759";
-      case "cancelled":
-        return "#34C759";
-      default:
-        return "#8E8E93";
+      case 'confirmed': return '#4CAF50';
+      case 'cancelled': return '#FF9800';
+      case 'completed': return '#9E9E9E';
+      default: return '#666';
     }
   };
-
-  // Get status text
-  const getStatusText = (status) => {
-    switch (status) {
-      case "confirmed":
-        return "Confirmed";
-      case "completed":
-        return "Completed";
-      case "cancelled":
-        return "Cancelled";
-      default:
-        return "Unknown";
-    }
-  };
-
-  // Render upcoming booking item
-  const renderUpcomingBookingItem = ({ item }) => (
-    <View style={styles.bookingItem}>
-      <View style={styles.bookingInfo}>
-        <Text style={styles.bookingDate}>{formatDate(item.date)}</Text>
-        <Text style={styles.bookingTime}>
-          {item.timeSlots.map((slot) => formatTimeTo12Hour(slot)).join(", ")}
-        </Text>
-        <Text
-          style={[styles.bookingStatus, { color: getStatusColor("confirmed") }]}
-        >
-          Confirmed
-        </Text>
-      </View>
-      <TouchableOpacity
-        style={styles.cancelButton}
-        onPress={() => handleCancelBooking(item.id)}
-      >
-        <Text style={styles.cancelButtonText}>Cancel</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  // Render past booking item
-  const renderPastBookingItem = ({ item }) => (
-    <View style={styles.bookingItem}>
-      <View style={styles.bookingInfo}>
-        <Text style={styles.bookingDate}>{formatDate(item.date)}</Text>
-        <Text style={styles.bookingTime}>
-          {item.timeSlots.map((slot) => formatTimeTo12Hour(slot)).join(", ")}
-        </Text>
-        <Text
-          style={[styles.bookingStatus, { color: getStatusColor(item.status) }]}
-        >
-          {getStatusText(item.status)}
-        </Text>
-      </View>
-    </View>
-  );
 
   if (!customer) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Customer not found</Text>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading customer...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <ScrollView style={styles.scrollView}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Customer Profile</Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#1C1C1E" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Customer Profile</Text>
-        <View style={styles.headerRight} />
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
         {/* Customer Info Card */}
         <View style={styles.customerCard}>
           <View style={styles.customerAvatar}>
@@ -212,11 +150,8 @@ const ProfileScreen = ({ route, navigation }) => {
           </View>
           <Text style={styles.customerName}>{customer.name}</Text>
           <Text style={styles.customerMobile}>{customer.mobile}</Text>
-          {customer.city && (
-            <Text style={styles.customerCity}>{customer.city}</Text>
-          )}
+          <Text style={styles.customerCity}>{customer.city}</Text>
           <TouchableOpacity style={styles.editButton}>
-            <Ionicons name="checkmark" size={16} color="#007AFF" />
             <Text style={styles.editButtonText}>Edit Details</Text>
           </TouchableOpacity>
         </View>
@@ -234,105 +169,107 @@ const ProfileScreen = ({ route, navigation }) => {
         </View>
 
         {/* Upcoming Bookings */}
-        {upcomingBookings.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Upcoming Bookings</Text>
-            <FlatList
-              data={upcomingBookings}
-              renderItem={renderUpcomingBookingItem}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-            />
-          </View>
-        )}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Upcoming Bookings</Text>
+          {upcomingBookings.map((booking) => (
+            <View key={booking.id} style={styles.bookingItem}>
+              <View style={styles.bookingInfo}>
+                <Text style={styles.bookingDate}>{formatDate(booking.date)}</Text>
+                <Text style={styles.bookingTime}>
+                  {booking.timeSlots.join(', ')}
+                </Text>
+                <Text style={[styles.bookingStatus, { color: getStatusColor(booking.status) }]}>
+                  {booking.status.toUpperCase()}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => handleCancelBooking(booking.id, booking.timeSlots)}
+                disabled={isOffline || isUsingCache || isProcessing}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
 
         {/* Past Bookings */}
-        {pastBookings.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Past Bookings</Text>
-              <Text style={styles.paginationText}>
-                Page {pastBookingsPage} of {getTotalPages()}
-              </Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Past Bookings</Text>
+          {pastBookings.map((booking) => (
+            <View key={booking.id} style={styles.bookingItem}>
+              <View style={styles.bookingInfo}>
+                <Text style={styles.bookingDate}>{formatDate(booking.date)}</Text>
+                <Text style={styles.bookingTime}>
+                  {booking.timeSlots.join(', ')}
+                </Text>
+                <Text style={[styles.bookingStatus, { color: getStatusColor(booking.status) }]}>
+                  {booking.status.toUpperCase()}
+                </Text>
+              </View>
+              {booking.status === 'confirmed' && (
+                <TouchableOpacity
+                  style={styles.completeButton}
+                  onPress={() => handleCompleteBooking(booking.id)}
+                  disabled={isOffline || isUsingCache || isProcessing}
+                >
+                  <Text style={styles.completeButtonText}>Complete</Text>
+                </TouchableOpacity>
+              )}
             </View>
-            <FlatList
-              data={displayedPastBookings}
-              renderItem={renderPastBookingItem}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-            />
-          </View>
-        )}
-
-        {/* Empty State */}
-        {upcomingBookings.length === 0 && pastBookings.length === 0 && (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="calendar-outline" size={64} color="#C7C7CC" />
-            <Text style={styles.emptyTitle}>No Bookings Yet</Text>
-            <Text style={styles.emptySubtitle}>
-              This customer hasn't made any bookings yet
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.bottomSpacing} />
+          ))}
+        </View>
       </ScrollView>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
+    backgroundColor: '#f5f5f5',
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  backButton: {
-    padding: 5,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1C1C1E",
-  },
-  headerRight: {
-    width: 34,
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
   },
   scrollView: {
     flex: 1,
+    padding: 20,
   },
-  errorContainer: {
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: '#f0f0f0',
+  },
+  headerTitle: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F2F2F7",
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
   },
-  errorText: {
-    fontSize: 18,
-    color: "#8E8E93",
+  headerSpacer: {
+    width: 40,
   },
   customerCard: {
-    backgroundColor: "#FFFFFF",
-    margin: 20,
-    padding: 24,
-    borderRadius: 16,
-    alignItems: "center",
-    shadowColor: "#000",
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -342,62 +279,56 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#007AFF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
   },
   customerAvatarText: {
+    color: 'white',
     fontSize: 32,
-    fontWeight: "bold",
-    color: "#FFFFFF",
+    fontWeight: 'bold',
   },
   customerName: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#1C1C1E",
+    fontWeight: 'bold',
+    color: '#333',
     marginBottom: 8,
-    textAlign: "center",
   },
   customerMobile: {
     fontSize: 16,
-    color: "#8E8E93",
+    color: '#666',
     marginBottom: 4,
-    textAlign: "center",
   },
   customerCity: {
     fontSize: 16,
-    color: "#8E8E93",
+    color: '#666',
     marginBottom: 20,
-    textAlign: "center",
   },
   editButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E3F2FD",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
   editButtonText: {
-    color: "#007AFF",
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 4,
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   statsContainer: {
-    flexDirection: "row",
-    marginHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 20,
-    gap: 12,
   },
   statCard: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: 'white',
+    borderRadius: 10,
     padding: 20,
-    borderRadius: 16,
-    alignItems: "center",
-    shadowColor: "#000",
+    alignItems: 'center',
+    marginHorizontal: 5,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -405,100 +336,75 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 32,
-    fontWeight: "bold",
-    color: "#007AFF",
-    marginBottom: 8,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    marginBottom: 5,
   },
   statLabel: {
     fontSize: 14,
-    color: "#1C1C1E",
-    textAlign: "center",
-    fontWeight: "500",
+    color: '#666',
+    textAlign: 'center',
   },
   section: {
-    marginHorizontal: 20,
     marginBottom: 20,
   },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#1C1C1E",
-  },
-  paginationText: {
-    fontSize: 14,
-    color: "#8E8E93",
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 15,
   },
   bookingItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   bookingInfo: {
     flex: 1,
   },
   bookingDate: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#1C1C1E",
+    fontWeight: '600',
+    color: '#333',
     marginBottom: 4,
   },
   bookingTime: {
     fontSize: 14,
-    color: "#8E8E93",
+    color: '#666',
     marginBottom: 4,
   },
   bookingStatus: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: '600',
   },
   cancelButton: {
-    backgroundColor: "#FF3B30",
-    paddingHorizontal: 16,
+    backgroundColor: '#ff6b6b',
+    paddingHorizontal: 15,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   cancelButtonText: {
-    color: "#FFFFFF",
+    color: 'white',
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
-  emptyContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 40,
-    marginTop: 20,
+  completeButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 6,
   },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#8E8E93",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: "#C7C7CC",
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  bottomSpacing: {
-    height: 20,
+  completeButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
-
-export default ProfileScreen;

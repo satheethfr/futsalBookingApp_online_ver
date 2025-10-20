@@ -1,528 +1,398 @@
-import React, { useState } from "react";
+// screens/CustomersScreen.jsx
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
-  Alert,
-  Modal,
   ScrollView,
   TextInput,
-  StatusBar,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useApp } from "../context/AppContext";
-import Toast from "react-native-toast-message";
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useApp } from '../context/AppContext';
 
-const CustomersScreen = ({ navigation }) => {
-  const { customers, deleteCustomer, getUpcomingBookings, completeBooking } =
-    useApp();
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+export default function CustomersScreen({ navigation }) {
+  const {
+    customers,
+    isLoading,
+    isOffline,
+    isUsingCache,
+    addCustomer,
+    updateCustomer,
+    deleteCustomer,
+  } = useApp();
 
-  // Filter customers based on search query
-  const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.mobile.includes(searchQuery) ||
-      (customer.city &&
-        customer.city.toLowerCase().includes(searchQuery.toLowerCase()))
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const filteredCustomers = customers.filter(customer =>
+    customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.mobile.includes(searchQuery) ||
+    customer.city.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Handle customer press (navigate to profile)
-  const handleCustomerPress = (customer) => {
-    navigation.navigate("Profile", { customerId: customer.id });
-  };
+  const handleAddCustomer = () => {
+    if (isOffline || isUsingCache) {
+      Alert.alert(
+        'Offline Mode',
+        'This action requires an internet connection.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
-  // Handle customer long press (delete customer)
-  const handleCustomerLongPress = (customer) => {
-    Alert.alert(
-      "Delete Customer",
-      `Are you sure you want to delete ${customer.name}? This will also delete all their bookings.`,
+    Alert.prompt(
+      'Add New Customer',
+      'Enter customer name:',
       [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            deleteCustomer(customer.id);
-            Toast.show({
-              type: "success",
-              text1: "Customer Deleted",
-              text2: `${customer.name} has been deleted`,
-            });
-          },
-        },
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Add', onPress: (name) => {
+          if (name) {
+            Alert.prompt(
+              'Mobile Number',
+              'Enter mobile number:',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Add', onPress: (mobile) => {
+                  if (mobile) {
+                    Alert.prompt(
+                      'City',
+                      'Enter city:',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Add', onPress: async (city) => {
+                          if (city) {
+                            setIsProcessing(true);
+                            try {
+                              await addCustomer({ name, mobile, city });
+                            } catch (error) {
+                              Alert.alert('Error', 'Failed to add customer');
+                            } finally {
+                              setIsProcessing(false);
+                            }
+                          }
+                        }}
+                      ]
+                    );
+                  }
+                }}
+              ]
+            );
+          }
+        }}
       ]
     );
   };
 
-  // Handle complete time slot
-  const handleCompleteTimeSlot = (bookingId, timeSlot) => {
-    completeBooking(bookingId, timeSlot);
-    Toast.show({
-      type: "success",
-      text1: "Time Slot Completed",
-      text2: `${timeSlot} slot has been completed`,
-    });
+  const handleDeleteCustomer = (customer) => {
+    if (isOffline || isUsingCache) {
+      Alert.alert(
+        'Offline Mode',
+        'This action requires an internet connection.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
-    setTimeout(() => {
-      if (
-        selectedCustomer &&
-        getUpcomingBookings(selectedCustomer.id).length === 0
-      ) {
-        closeModal();
-      }
-    }, 1000);
-  };
-
-  // Close modal
-  const closeModal = () => {
-    setModalVisible(false);
-    setSelectedCustomer(null);
-  };
-
-  // Format date for display
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  // Convert 24-hour format to 12-hour format with AM/PM
-  const formatTimeTo12Hour = (time24) => {
-    const [hours, minutes] = time24.split(":");
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? "PM" : "AM";
-    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${hour12}:${minutes} ${ampm}`;
-  };
-
-  // Get time range for a time slot
-  const getTimeRange = (timeSlot) => {
-    const startTime = formatTimeTo12Hour(timeSlot);
-    const [hours, minutes] = timeSlot.split(":");
-    const endHour = parseInt(hours) + 1;
-    const endTime = formatTimeTo12Hour(
-      `${endHour.toString().padStart(2, "0")}:${minutes}`
+    Alert.alert(
+      'Delete Customer',
+      `Are you sure you want to delete ${customer.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: async () => {
+          setIsProcessing(true);
+          try {
+            await deleteCustomer(customer.id);
+          } catch (error) {
+            Alert.alert('Error', 'Failed to delete customer');
+          } finally {
+            setIsProcessing(false);
+          }
+        }}
+      ]
     );
-    return `${startTime} - ${endTime}`;
   };
 
-  // Render customer item
-  const renderCustomerItem = ({ item }) => {
+  if (isLoading) {
     return (
-      <TouchableOpacity
-        style={styles.customerItem}
-        onPress={() => handleCustomerPress(item)}
-        onLongPress={() => handleCustomerLongPress(item)}
-        delayLongPress={1000}
-      >
-        <View style={styles.customerAvatar}>
-          <Text style={styles.customerAvatarText}>
-            {item.name.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View style={styles.customerInfo}>
-          <Text style={styles.customerName}>{item.name}</Text>
-          <Text style={styles.customerMobile}>{item.mobile}</Text>
-          {item.city && <Text style={styles.customerCity}>{item.city}</Text>}
-          <View style={styles.customerStats}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{item.totalBookings}</Text>
-              <Text style={styles.statLabel}>BOOKINGS</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{item.totalCancellations}</Text>
-              <Text style={styles.statLabel}>CANCELLED</Text>
-            </View>
-          </View>
-        </View>
-        <View style={styles.arrowContainer}>
-          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-        </View>
-      </TouchableOpacity>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading customers...</Text>
+      </View>
     );
-  };
+  }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="people" size={24} color="#007AFF" />
-          <Text style={styles.headerTitle}>Customers</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <Text style={styles.customerCount}>{customers.length}</Text>
-          <Text style={styles.customerCountLabel}>Customers</Text>
-        </View>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons
-          name="search"
-          size={20}
-          color="#8E8E93"
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search customers..."
-          placeholderTextColor="#8E8E93"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      {/* Customer List */}
-      {filteredCustomers.length > 0 ? (
-        <FlatList
-          data={filteredCustomers}
-          renderItem={renderCustomerItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="people-outline" size={64} color="#C7C7CC" />
-          <Text style={styles.emptyTitle}>No Customers Found</Text>
-          <Text style={styles.emptySubtitle}>
-            {searchQuery
-              ? "Try adjusting your search"
-              : "Customers will appear here after they make their first booking"}
-          </Text>
-        </View>
-      )}
-
-      {/* Upcoming Bookings Modal */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={closeModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                Upcoming Bookings - {selectedCustomer?.name}
-              </Text>
-              <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#6c757d" />
-              </TouchableOpacity>
+      <ScrollView style={styles.scrollView}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.headerIcon}>
+              <Ionicons name="people" size={24} color="#007AFF" />
             </View>
-            <ScrollView
-              style={styles.modalContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {selectedCustomer &&
-              getUpcomingBookings(selectedCustomer.id).length > 0 ? (
-                getUpcomingBookings(selectedCustomer.id).map((booking) => (
-                  <View key={booking.id} style={styles.bookingCard}>
-                    <View style={styles.bookingHeader}>
-                      <Text style={styles.bookingDate}>
-                        {formatDate(booking.date)}
-                      </Text>
-                      <Text style={styles.bookingStatus}>
-                        {booking.timeSlots.length} slot
-                        {booking.timeSlots.length > 1 ? "s" : ""}
-                      </Text>
-                    </View>
-                    <View style={styles.timeSlotsContainer}>
-                      {booking.timeSlots.map((timeSlot, index) => (
-                        <View key={index} style={styles.timeSlotItem}>
-                          <View style={styles.timeSlotInfo}>
-                            <Text style={styles.timeSlotText}>
-                              {getTimeRange(timeSlot)}
-                            </Text>
-                          </View>
-                          <TouchableOpacity
-                            style={styles.completeButton}
-                            onPress={() =>
-                              handleCompleteTimeSlot(booking.id, timeSlot)
-                            }
-                          >
-                            <Ionicons
-                              name="checkmark"
-                              size={16}
-                              color="#ffffff"
-                            />
-                            <Text style={styles.completeButtonText}>
-                              Complete
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                ))
-              ) : (
-                <View style={styles.noBookingsContainer}>
-                  <Text style={styles.noBookingsText}>
-                    No upcoming bookings for {selectedCustomer?.name}
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
+            <View>
+              <Text style={styles.headerTitle}>Customers</Text>
+              <Text style={styles.headerSubtitle}>{customers.length} total customers</Text>
+            </View>
           </View>
         </View>
-      </Modal>
+
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={20} color="#666" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search customers..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        {/* Add Customer Button */}
+        <TouchableOpacity
+          style={[
+            styles.addButton,
+            (isOffline || isUsingCache) && styles.disabledButton
+          ]}
+          onPress={handleAddCustomer}
+          disabled={isOffline || isUsingCache}
+        >
+          <Ionicons name="add" size={20} color="white" />
+          <Text style={styles.addButtonText}>
+            {isOffline || isUsingCache ? 'Offline Mode - Actions Disabled' : 'Add Customer'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Customers List */}
+        <View style={styles.customersList}>
+          {filteredCustomers.map((customer) => (
+            <TouchableOpacity
+              key={customer.id}
+              style={styles.customerItem}
+              onPress={() => navigation.navigate('Profile', { customerId: customer.id })}
+            >
+              <View style={styles.customerAvatar}>
+                <Text style={styles.customerAvatarText}>
+                  {customer.name.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              
+              <View style={styles.customerInfo}>
+                <Text style={styles.customerName}>{customer.name}</Text>
+                <Text style={styles.customerMobile}>{customer.mobile}</Text>
+                <Text style={styles.customerCity}>{customer.city}</Text>
+              </View>
+
+              <View style={styles.customerStats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{customer.totalBookings}</Text>
+                  <Text style={styles.statLabel}>BOOKINGS</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{customer.totalCancellations}</Text>
+                  <Text style={styles.statLabel}>CANCELLED</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => handleDeleteCustomer(customer)}
+                disabled={isOffline || isUsingCache}
+              >
+                <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {filteredCustomers.length === 0 && (
+          <View style={styles.emptyState}>
+            <Ionicons name="people-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyStateText}>No customers found</Text>
+            <Text style={styles.emptyStateSubtext}>
+              {searchQuery ? 'Try adjusting your search' : 'Add your first customer'}
+            </Text>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  scrollView: {
+    flex: 1,
+    padding: 20,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: "#FFFFFF",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#e3f2fd',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#1C1C1E",
-    marginLeft: 8,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
   },
-  headerRight: {
-    backgroundColor: "#F2F2F7",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignItems: "center",
-  },
-  customerCount: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#007AFF",
-  },
-  customerCountLabel: {
-    fontSize: 12,
-    color: "#8E8E93",
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#666',
     marginTop: 2,
   },
   searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F2F2F7",
-    marginHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    paddingHorizontal: 15,
     marginBottom: 20,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
+    paddingVertical: 15,
     fontSize: 16,
-    color: "#1C1C1E",
   },
-  listContainer: {
-    paddingHorizontal: 20,
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
+  },
+  addButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  customersList: {
+    marginBottom: 20,
   },
   customerItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    marginBottom: 12,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   customerAvatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "#007AFF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
   },
   customerAvatarText: {
+    color: 'white',
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#FFFFFF",
+    fontWeight: '600',
   },
   customerInfo: {
     flex: 1,
   },
   customerName: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#1C1C1E",
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
     marginBottom: 4,
   },
   customerMobile: {
-    fontSize: 15,
-    color: "#8E8E93",
+    fontSize: 14,
+    color: '#666',
     marginBottom: 2,
   },
   customerCity: {
-    fontSize: 15,
-    color: "#8E8E93",
-    marginBottom: 12,
+    fontSize: 14,
+    color: '#666',
   },
   customerStats: {
-    flexDirection: "row",
+    flexDirection: 'row',
+    marginRight: 15,
   },
   statItem: {
-    marginRight: 20,
+    alignItems: 'center',
+    marginHorizontal: 10,
   },
   statNumber: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#1C1C1E",
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
   statLabel: {
-    fontSize: 12,
-    color: "#8E8E93",
+    fontSize: 10,
+    color: '#666',
     marginTop: 2,
   },
-  arrowContainer: {
-    marginLeft: 8,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#8E8E93",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: "#C7C7CC",
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContainer: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "80%",
-    minHeight: "50%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5EA",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#1C1C1E",
-    flex: 1,
-  },
-  closeButton: {
-    padding: 5,
-  },
-  modalContent: {
-    flex: 1,
-    padding: 20,
-  },
-  bookingCard: {
-    backgroundColor: "#F2F2F7",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 15,
-  },
-  bookingHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  bookingDate: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1C1C1E",
-  },
-  bookingStatus: {
-    fontSize: 14,
-    color: "#8E8E93",
-  },
-  timeSlotsContainer: {
-    gap: 10,
-  },
-  timeSlotItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    padding: 12,
-    borderRadius: 8,
-  },
-  timeSlotInfo: {
-    flex: 1,
-  },
-  timeSlotText: {
-    fontSize: 14,
-    color: "#1C1C1E",
-    fontWeight: "500",
-  },
-  completeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#34C759",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  deleteButton: {
+    padding: 8,
     borderRadius: 6,
+    backgroundColor: '#ffebee',
   },
-  completeButtonText: {
-    color: "#FFFFFF",
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 15,
+  },
+  emptyStateSubtext: {
     fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 4,
-  },
-  noBookingsContainer: {
-    alignItems: "center",
-    padding: 20,
-  },
-  noBookingsText: {
-    fontSize: 16,
-    color: "#8E8E93",
-    textAlign: "center",
+    color: '#999',
+    marginTop: 5,
   },
 });
-
-export default CustomersScreen;

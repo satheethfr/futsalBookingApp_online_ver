@@ -1,251 +1,226 @@
-import React, { useState, useEffect } from "react";
+// screens/ConfirmationScreen.jsx
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
+  ScrollView,
   TextInput,
   Alert,
-  StatusBar,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useApp } from "../context/AppContext";
-import Toast from "react-native-toast-message";
+  ActivityIndicator,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useApp } from '../context/AppContext';
 
-const ConfirmationScreen = ({ route, navigation }) => {
+export default function ConfirmationScreen({ route, navigation }) {
   const { selectedDate, selectedTimeSlots } = route.params;
-  const { customers, addCustomer, addBooking } = useApp();
+  const {
+    customers,
+    isOffline,
+    isUsingCache,
+    addCustomer,
+    addBooking,
+  } = useApp();
 
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
-    name: "",
-    mobile: "",
-    city: "",
+    name: '',
+    mobile: '',
+    city: '',
   });
-  const [errors, setErrors] = useState({});
 
-  // Filter customers based on search query
-  const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.mobile.includes(searchQuery) ||
-      customer.city.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCustomers = customers.filter(customer =>
+    customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.mobile.includes(searchQuery) ||
+    customer.city.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Validate new customer form
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!newCustomer.name.trim()) {
-      newErrors.name = "Name is required";
-    } else if (newCustomer.name.trim().length < 2) {
-      newErrors.name = "Name must be at least 2 characters";
-    } else if (newCustomer.name.trim().length > 15) {
-      newErrors.name = "Name must not exceed 15 characters";
-    }
-
-    if (!newCustomer.mobile.trim()) {
-      newErrors.mobile = "Mobile number is required";
-    } else if (!/^[0-9]{10}$/.test(newCustomer.mobile)) {
-      newErrors.mobile = "Mobile number must be exactly 10 digits";
-    }
-
-    if (newCustomer.city.trim() && newCustomer.city.trim().length < 2) {
-      newErrors.city = "City name must be at least 2 characters";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // Handle customer selection
-  const handleCustomerSelect = (customer) => {
-    setSelectedCustomer(customer);
-  };
-
-  // Handle new customer form submission
-  const handleNewCustomerSubmit = () => {
-    if (validateForm()) {
-      const customerData = {
-        name: newCustomer.name.trim(),
-        mobile: newCustomer.mobile.trim(),
-        city: newCustomer.city.trim(),
-      };
-
-      addCustomer(customerData);
-      setSelectedCustomer(customerData);
-      setShowNewCustomerForm(false);
-      setNewCustomer({ name: "", mobile: "", city: "" });
-      setErrors({});
-
-      Toast.show({
-        type: "success",
-        text1: "Customer Added",
-        text2: `${customerData.name} has been added successfully`,
-      });
-    }
-  };
-
-  // Handle booking confirmation
-  const handleConfirmBooking = () => {
-    if (!selectedCustomer) {
+  const handleConfirmBooking = async () => {
+    if (isOffline || isUsingCache) {
       Alert.alert(
-        "No Customer Selected",
-        "Please select or add a customer to proceed."
+        'Offline Mode',
+        'This action requires an internet connection.',
+        [{ text: 'OK' }]
       );
       return;
     }
 
-    const bookingData = {
-      customerId: selectedCustomer.id,
-      customerName: selectedCustomer.name,
-      date: selectedDate,
-      timeSlots: selectedTimeSlots,
-    };
+    if (!selectedCustomer) {
+      Alert.alert('Error', 'Please select a customer');
+      return;
+    }
 
-    addBooking(bookingData);
+    setIsCreating(true);
+    try {
+      const bookingData = {
+        customerId: selectedCustomer.id,
+        customerName: selectedCustomer.name,
+        date: selectedDate,
+        timeSlots: selectedTimeSlots,
+        status: 'confirmed',
+      };
 
-    Toast.show({
-      type: "success",
-      text1: "Booking Confirmed",
-      text2: `Booking confirmed for ${selectedCustomer.name}`,
-    });
-
-    navigation.navigate("Main");
+      const result = await addBooking(bookingData);
+      
+      if (result.success) {
+        Alert.alert(
+          'Success',
+          'Booking confirmed successfully!',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('Main')
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to create booking');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
+  const handleAddCustomer = async () => {
+    if (isOffline || isUsingCache) {
+      Alert.alert(
+        'Offline Mode',
+        'This action requires an internet connection.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
-  // Convert 24-hour format to 12-hour format with AM/PM
-  const formatTimeTo12Hour = (time24) => {
-    const [hours, minutes] = time24.split(":");
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? "PM" : "AM";
-    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${hour12}:${minutes} ${ampm}`;
+    if (!newCustomer.name || !newCustomer.mobile || !newCustomer.city) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const result = await addCustomer(newCustomer);
+      
+      if (result.success) {
+        setSelectedCustomer(result.data);
+        setShowAddCustomerModal(false);
+        setNewCustomer({ name: '', mobile: '', city: '' });
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add customer');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <ScrollView style={styles.scrollView}>
         {/* Booking Summary */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Booking Summary</Text>
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Date</Text>
-              <Text style={styles.summaryValue}>
-                {formatDate(selectedDate)}
-              </Text>
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <View style={styles.sectionIconCircle}>
+                <Ionicons name="calendar-outline" size={20} color="#007AFF" />
+              </View>
+              <Text style={styles.sectionTitle}>Booking Summary</Text>
             </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Time</Text>
-              <Text style={styles.summaryValue}>
-                {selectedTimeSlots
-                  .map((slot) => formatTimeTo12Hour(slot))
-                  .join(", ")}
-              </Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Slots</Text>
-              <Text style={styles.summaryValue}>
-                {selectedTimeSlots.length}
-              </Text>
-            </View>
+          </View>
+
+          <View style={styles.bookingDetails}>
+            <Text style={styles.bookingDetailText}>
+              <Text style={styles.bold}>Date:</Text> {selectedDate}
+            </Text>
+            <Text style={styles.bookingDetailText}>
+              <Text style={styles.bold}>Time Slots:</Text> {selectedTimeSlots.join(', ')}
+            </Text>
+            <Text style={styles.bookingDetailText}>
+              <Text style={styles.bold}>Total Slots:</Text> {selectedTimeSlots.length}
+            </Text>
           </View>
         </View>
 
         {/* Customer Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Customer</Text>
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <View style={styles.sectionIconCircle}>
+                <Ionicons name="people-outline" size={20} color="#007AFF" />
+              </View>
+              <Text style={styles.sectionTitle}>Select Customer</Text>
+            </View>
+          </View>
 
-          {/* Search Bar */}
           <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#999999" />
+            <Ionicons name="search-outline" size={20} color="#666" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search customers..."
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholderTextColor="#999999"
             />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setSearchQuery("")}
-                style={styles.clearButton}
-              >
-                <Ionicons name="close" size={20} color="#999999" />
-              </TouchableOpacity>
-            )}
           </View>
 
-          {/* Customer List */}
           <View style={styles.customerList}>
-            {filteredCustomers.length > 0 ? (
-              filteredCustomers.map((customer) => (
-                <TouchableOpacity
-                  key={customer.id}
-                  style={[
-                    styles.customerItem,
-                    selectedCustomer?.id === customer.id &&
-                      styles.selectedCustomerItem,
-                  ]}
-                  onPress={() => handleCustomerSelect(customer)}
-                >
-                  <View style={styles.customerAvatar}>
-                    <Text style={styles.customerAvatarText}>
-                      {customer.name.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.customerInfo}>
-                    <Text style={styles.customerName}>{customer.name}</Text>
-                    <Text style={styles.customerDetails}>
-                      {customer.mobile} • {customer.city}
-                    </Text>
-                  </View>
-                  {selectedCustomer?.id === customer.id && (
-                    <View style={styles.checkmark}>
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))
-            ) : (
-              <View style={styles.noCustomersContainer}>
-                <Ionicons name="people-outline" size={40} color="#CCCCCC" />
-                <Text style={styles.noCustomersText}>
-                  {searchQuery
-                    ? "No customers found"
-                    : "No customers available"}
-                </Text>
-              </View>
-            )}
+            {filteredCustomers.map((customer) => (
+              <TouchableOpacity
+                key={customer.id}
+                style={[
+                  styles.customerItem,
+                  selectedCustomer?.id === customer.id && styles.selectedCustomerItem
+                ]}
+                onPress={() => setSelectedCustomer(customer)}
+              >
+                <View style={styles.customerAvatar}>
+                  <Text style={styles.customerAvatarText}>
+                    {customer.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.customerInfo}>
+                  <Text style={styles.customerName}>{customer.name}</Text>
+                  <Text style={styles.customerDetails}>
+                    {customer.mobile} • {customer.city}
+                  </Text>
+                </View>
+                {selectedCustomer?.id === customer.id && (
+                  <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+                )}
+              </TouchableOpacity>
+            ))}
           </View>
+
+          <TouchableOpacity
+            style={styles.addCustomerButton}
+            onPress={() => setShowAddCustomerModal(true)}
+            disabled={isOffline || isUsingCache}
+          >
+            <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
+            <Text style={styles.addCustomerButtonText}>Add New Customer</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Selected Customer */}
         {selectedCustomer && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Selected Customer</Text>
-            <View style={styles.selectedCustomerCard}>
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <View style={styles.sectionIconCircle}>
+                  <Ionicons name="person-circle-outline" size={20} color="#007AFF" />
+                </View>
+                <Text style={styles.sectionTitle}>Selected Customer</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.changeButton}
+                onPress={() => setSelectedCustomer(null)}
+              >
+                <Text style={styles.changeButtonText}>Change</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.selectedCustomerDetailsContainer}>
               <View style={styles.selectedCustomerAvatar}>
                 <Text style={styles.selectedCustomerAvatarText}>
                   {selectedCustomer.name.charAt(0).toUpperCase()}
@@ -272,117 +247,74 @@ const ConfirmationScreen = ({ route, navigation }) => {
           </View>
         )}
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.addCustomerButton}
-            onPress={() => setShowNewCustomerForm(true)}
-          >
-            <Ionicons name="person-add" size={20} color="#FFFFFF" />
-            <Text style={styles.addCustomerButtonText}>Add New Customer</Text>
-          </TouchableOpacity>
-
-          {selectedCustomer && (
-            <TouchableOpacity
-              style={styles.confirmButton}
-              onPress={handleConfirmBooking}
-            >
-              <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-              <Text style={styles.confirmButtonText}>Confirm Booking</Text>
-            </TouchableOpacity>
+        {/* Confirm Button */}
+        <TouchableOpacity
+          style={[
+            styles.confirmButton,
+            (isOffline || isUsingCache || !selectedCustomer || isCreating) && styles.disabledButton
+          ]}
+          onPress={handleConfirmBooking}
+          disabled={isOffline || isUsingCache || !selectedCustomer || isCreating}
+        >
+          {isCreating ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text style={styles.confirmButtonText}>
+              {isOffline || isUsingCache 
+                ? 'Offline Mode - Actions Disabled'
+                : 'Confirm Booking'
+              }
+            </Text>
           )}
-        </View>
+        </TouchableOpacity>
       </ScrollView>
 
-      {/* New Customer Form Modal */}
-      {showNewCustomerForm && (
+      {/* Add Customer Modal */}
+      {showAddCustomerModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add New Customer</Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => {
-                  setShowNewCustomerForm(false);
-                  setNewCustomer({ name: "", mobile: "", city: "" });
-                  setErrors({});
-                }}
-              >
-                <Ionicons name="close" size={24} color="#999999" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              style={styles.formScrollView}
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.formContent}>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Name *</Text>
-                  <TextInput
-                    style={[styles.input, errors.name && styles.inputError]}
-                    placeholder="Enter customer name"
-                    value={newCustomer.name}
-                    onChangeText={(text) =>
-                      setNewCustomer({ ...newCustomer, name: text })
-                    }
-                    maxLength={15}
-                  />
-                  {errors.name && (
-                    <Text style={styles.errorText}>{errors.name}</Text>
-                  )}
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Mobile Number *</Text>
-                  <TextInput
-                    style={[styles.input, errors.mobile && styles.inputError]}
-                    placeholder="Enter 10-digit mobile number"
-                    value={newCustomer.mobile}
-                    onChangeText={(text) =>
-                      setNewCustomer({ ...newCustomer, mobile: text })
-                    }
-                    keyboardType="numeric"
-                    maxLength={10}
-                  />
-                  {errors.mobile && (
-                    <Text style={styles.errorText}>{errors.mobile}</Text>
-                  )}
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>City</Text>
-                  <TextInput
-                    style={[styles.input, errors.city && styles.inputError]}
-                    placeholder="Enter city name"
-                    value={newCustomer.city}
-                    onChangeText={(text) =>
-                      setNewCustomer({ ...newCustomer, city: text })
-                    }
-                  />
-                  {errors.city && (
-                    <Text style={styles.errorText}>{errors.city}</Text>
-                  )}
-                </View>
-              </View>
-            </ScrollView>
+            <Text style={styles.modalTitle}>Add New Customer</Text>
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Name"
+              value={newCustomer.name}
+              onChangeText={(text) => setNewCustomer(prev => ({ ...prev, name: text }))}
+            />
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Mobile"
+              value={newCustomer.mobile}
+              onChangeText={(text) => setNewCustomer(prev => ({ ...prev, mobile: text }))}
+              keyboardType="phone-pad"
+            />
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="City"
+              value={newCustomer.city}
+              onChangeText={(text) => setNewCustomer(prev => ({ ...prev, city: text }))}
+            />
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => {
-                  setShowNewCustomerForm(false);
-                  setNewCustomer({ name: "", mobile: "", city: "" });
-                  setErrors({});
-                }}
+                style={styles.modalCancelButton}
+                onPress={() => setShowAddCustomerModal(false)}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
               </TouchableOpacity>
+              
               <TouchableOpacity
-                style={styles.submitButton}
-                onPress={handleNewCustomerSubmit}
+                style={styles.modalAddButton}
+                onPress={handleAddCustomer}
+                disabled={isCreating}
               >
-                <Text style={styles.submitButtonText}>Add Customer</Text>
+                {isCreating ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.modalAddButtonText}>Add Customer</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -390,326 +322,262 @@ const ConfirmationScreen = ({ route, navigation }) => {
       )}
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: '#f5f5f5',
   },
   scrollView: {
     flex: 1,
+    padding: 20,
   },
-  scrollContent: {
-    paddingTop: 20,
-    paddingBottom: 30,
+  sectionCard: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  section: {
-    marginTop: 20,
-    paddingHorizontal: 20,
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sectionIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1A1A1A",
-    marginBottom: 12,
-  },
-  summaryCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 8,
-  },
-  summaryLabel: {
     fontSize: 16,
-    color: "#666666",
-    fontWeight: "500",
+    fontWeight: '600',
+    color: '#333',
   },
-  summaryValue: {
-    fontSize: 16,
-    color: "#1A1A1A",
-    fontWeight: "600",
+  bookingDetails: {
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    borderRadius: 8,
+  },
+  bookingDetailText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 5,
+  },
+  bold: {
+    fontWeight: '600',
+    color: '#333',
   },
   searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    marginBottom: 15,
+  },
+  searchIcon: {
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
+    paddingVertical: 12,
     fontSize: 16,
-    color: "#1A1A1A",
-    marginLeft: 12,
-  },
-  clearButton: {
-    padding: 4,
   },
   customerList: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    maxHeight: 300,
+    marginBottom: 15,
   },
   customerItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#f8f9fa',
   },
   selectedCustomerItem: {
-    backgroundColor: "#F0F8FF",
+    backgroundColor: '#e3f2fd',
+    borderWidth: 1,
+    borderColor: '#2196F3',
   },
   customerAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#007AFF",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   customerAvatarText: {
-    color: "#FFFFFF",
+    color: 'white',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: '600',
   },
   customerInfo: {
     flex: 1,
   },
   customerName: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#1A1A1A",
+    fontWeight: '600',
+    color: '#333',
     marginBottom: 2,
   },
   customerDetails: {
     fontSize: 14,
-    color: "#666666",
+    color: '#666',
   },
-  checkmark: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#007AFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  noCustomersContainer: {
-    padding: 40,
-    alignItems: "center",
-  },
-  noCustomersText: {
-    fontSize: 16,
-    color: "#999999",
-    marginTop: 12,
-  },
-  selectedCustomerCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+  addCustomerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#007AFF",
+    borderColor: '#007AFF',
+    borderStyle: 'dashed',
+  },
+  addCustomerButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  selectedCustomerDetailsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    borderRadius: 8,
   },
   selectedCustomerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#007AFF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
   },
   selectedCustomerAvatarText: {
-    color: "#FFFFFF",
+    color: 'white',
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: '600',
   },
   selectedCustomerInfo: {
     flex: 1,
   },
   selectedCustomerName: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#1A1A1A",
-    marginBottom: 2,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 5,
   },
   selectedCustomerDetails: {
     fontSize: 14,
-    color: "#666666",
+    color: '#666',
     marginTop: 2,
   },
   changeButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "#F0F8FF",
+    padding: 8,
     borderRadius: 6,
+    backgroundColor: '#f0f0f0',
   },
   changeButtonText: {
+    color: '#007AFF',
     fontSize: 14,
-    fontWeight: "600",
-    color: "#007AFF",
-  },
-  actionButtons: {
-    paddingHorizontal: 20,
-    marginTop: 20,
-  },
-  addCustomerButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#007AFF",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  addCustomerButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
+    fontWeight: '500',
   },
   confirmButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#34C759",
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
   },
   confirmButtonText: {
-    color: "#FFFFFF",
+    color: 'white',
     fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
+    fontWeight: '600',
   },
   modalOverlay: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    margin: 20,
-    maxHeight: "80%",
-    width: "90%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    backgroundColor: 'white',
+    borderRadius: 10,
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    width: '90%',
+    maxWidth: 400,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#1A1A1A",
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
   },
-  closeButton: {
-    padding: 4,
-  },
-  formScrollView: {
-    maxHeight: 300,
-  },
-  formContent: {
-    padding: 20,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1A1A1A",
-    marginBottom: 8,
-  },
-  input: {
+  modalInput: {
     borderWidth: 1,
-    borderColor: "#E5E5E5",
+    borderColor: '#ddd',
     borderRadius: 8,
     padding: 12,
+    marginBottom: 15,
     fontSize: 16,
-    color: "#1A1A1A",
-    backgroundColor: "#FFFFFF",
-  },
-  inputError: {
-    borderColor: "#FF3B30",
-  },
-  errorText: {
-    color: "#FF3B30",
-    fontSize: 12,
-    marginTop: 4,
   },
   modalButtons: {
-    flexDirection: "row",
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#F0F0F0",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  cancelButton: {
+  modalCancelButton: {
     flex: 1,
     padding: 12,
-    marginRight: 8,
-    backgroundColor: "#8E8E93",
     borderRadius: 8,
-    alignItems: "center",
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+    marginRight: 10,
   },
-  cancelButtonText: {
-    color: "#FFFFFF",
+  modalCancelButtonText: {
+    color: '#666',
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '500',
   },
-  submitButton: {
+  modalAddButton: {
     flex: 1,
     padding: 12,
-    marginLeft: 8,
-    backgroundColor: "#007AFF",
     borderRadius: 8,
-    alignItems: "center",
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+    marginLeft: 10,
   },
-  submitButtonText: {
-    color: "#FFFFFF",
+  modalAddButtonText: {
+    color: 'white',
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '500',
   },
 });
-
-export default ConfirmationScreen;
