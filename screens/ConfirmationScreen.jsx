@@ -12,6 +12,13 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../context/AppContext";
+import {
+  COLORS,
+  SPACING,
+  TYPOGRAPHY,
+  SHADOWS,
+  RADIUS,
+} from "../constants/theme";
 
 export default function ConfirmationScreen({ route, navigation }) {
   const { selectedDate, selectedTimeSlots } = route.params;
@@ -348,22 +355,18 @@ export default function ConfirmationScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
   },
   scrollView: {
     flex: 1,
-    padding: 20,
+    padding: SPACING.lg,
   },
   sectionCard: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    ...SHADOWS.light,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -385,9 +388,8 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
+    ...TYPOGRAPHY.h4,
+    color: COLORS.textPrimary,
   },
   bookingDetails: {
     backgroundColor: "#f8f9fa",
@@ -406,18 +408,22 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    marginBottom: 15,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+    height: 48,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   searchIcon: {
     marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: SPACING.sm,
     fontSize: 16,
+    color: COLORS.textPrimary,
   },
   customerList: {
     maxHeight: 300,
@@ -426,27 +432,27 @@ const styles = StyleSheet.create({
   customerItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    backgroundColor: "#f8f9fa",
+    padding: SPACING.sm,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.xs,
+    backgroundColor: COLORS.background,
   },
   selectedCustomerItem: {
-    backgroundColor: "#e3f2fd",
-    borderWidth: 1,
-    borderColor: "#2196F3",
+    backgroundColor: COLORS.primaryLight,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
   },
   customerAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#007AFF",
+    backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: SPACING.sm,
   },
   customerAvatarText: {
-    color: "white",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -454,14 +460,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   customerName: {
-    fontSize: 16,
+    ...TYPOGRAPHY.body,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 2,
   },
   customerDetails: {
-    fontSize: 14,
-    color: "#666",
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
   },
   addCustomerButton: {
     flexDirection: "row",
@@ -525,17 +531,19 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   confirmButton: {
-    backgroundColor: "#4CAF50",
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    height: 50,
+    borderRadius: RADIUS.lg,
     alignItems: "center",
-    marginBottom: 20,
+    justifyContent: "center",
+    marginBottom: SPACING.lg,
+    ...SHADOWS.medium,
   },
   disabledButton: {
-    backgroundColor: "#ccc",
+    backgroundColor: COLORS.textTertiary,
   },
   confirmButtonText: {
-    color: "white",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "600",
   },

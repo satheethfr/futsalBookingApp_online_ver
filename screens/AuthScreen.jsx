@@ -11,6 +11,13 @@ import {
 } from "react-native";
 import { supabase } from "../lib/supabase";
 import { handleError } from "../lib/errorHandler";
+import {
+  COLORS,
+  SPACING,
+  TYPOGRAPHY,
+  SHADOWS,
+  RADIUS,
+} from "../constants/theme";
 
 export default function AuthScreen({ onAuthSuccess }) {
   const [email, setEmail] = useState("");
@@ -126,63 +133,68 @@ export default function AuthScreen({ onAuthSuccess }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
     justifyContent: "center",
-    padding: 20,
+    padding: SPACING.lg,
   },
   header: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: SPACING.xxl,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 8,
+    ...TYPOGRAPHY.h1,
+    fontSize: 28,
+    color: COLORS.primary,
+    marginBottom: SPACING.xs,
+    textAlign: "center",
   },
   subtitle: {
-    fontSize: 18,
-    color: "#666",
+    ...TYPOGRAPHY.h4,
+    color: COLORS.textSecondary,
+    textAlign: "center",
   },
   form: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: COLORS.surface,
+    padding: SPACING.xxl,
+    borderRadius: RADIUS.xl,
+    ...SHADOWS.medium,
   },
   input: {
+    height: 50,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
     fontSize: 16,
+    color: COLORS.textPrimary,
+    backgroundColor: COLORS.surface,
   },
   button: {
-    backgroundColor: "#007AFF",
-    padding: 15,
-    borderRadius: 8,
+    backgroundColor: COLORS.primary,
+    height: 52,
+    borderRadius: RADIUS.md,
     alignItems: "center",
+    justifyContent: "center",
+    marginTop: SPACING.sm,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
-    color: "white",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "600",
   },
   footer: {
-    marginTop: 30,
+    marginTop: SPACING.xl,
     alignItems: "center",
   },
   footerText: {
-    color: "#666",
+    color: COLORS.textSecondary,
     textAlign: "center",
     fontSize: 14,
+    lineHeight: 20,
+    marginBottom: SPACING.xs,
   },
 });
