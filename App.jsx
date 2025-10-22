@@ -50,7 +50,7 @@ function MainTabNavigator() {
       <Tab.Screen
         name="BookCourt"
         component={BookingScreen}
-        options={{ title: "Book Court" }}
+        options={{ title: "A2 Sports Park" }}
       />
       <Tab.Screen
         name="Customers"
