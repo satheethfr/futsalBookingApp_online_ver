@@ -502,8 +502,17 @@ export function AppProvider({ children }) {
     );
   };
 
-  const getTodayBookings = () => {
-    const today = new Date().toISOString().split("T")[0];
+  // Helper function to get current date in local format
+  const getCurrentDateString = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const getTodayBookings = (targetDate = null) => {
+    const today = targetDate || getCurrentDateString();
 
     // Filter bookings for today and only confirmed/pending status (exclude cancelled)
     const todayBookings = state.bookings.filter(
@@ -512,6 +521,10 @@ export function AppProvider({ children }) {
 
     console.log("getTodayBookings - Today:", today);
     console.log("getTodayBookings - All bookings:", state.bookings.length);
+    console.log(
+      "getTodayBookings - All booking dates:",
+      state.bookings.map((b) => ({ id: b.id, date: b.date, status: b.status }))
+    );
     console.log(
       "getTodayBookings - Today's active bookings:",
       todayBookings.length
@@ -557,8 +570,8 @@ export function AppProvider({ children }) {
   };
 
   // Enhanced function to get today's bookings with individual time slot cards
-  const getTodayBookingsWithDetails = () => {
-    const todayBookings = getTodayBookings();
+  const getTodayBookingsWithDetails = (targetDate = null) => {
+    const todayBookings = getTodayBookings(targetDate);
 
     // Create individual cards for each time slot
     const individualSlots = [];

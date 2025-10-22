@@ -66,6 +66,7 @@ export default function BookingScreen({ navigation }) {
   // Panel state
   const [isTodayPanelVisible, setIsTodayPanelVisible] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [sidePanelRefresh, setSidePanelRefresh] = useState(0);
   const scrollRef = useRef(null);
   const panRef = useRef(null);
 
@@ -108,6 +109,70 @@ export default function BookingScreen({ navigation }) {
     );
     console.log("Completed bookings:", completedBookings.length);
   }, [bookings]);
+
+  // Date change detection and monitoring
+  useEffect(() => {
+    const checkDateChange = () => {
+      // Use local date calculation
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const currentDate = `${year}-${month}-${day}`;
+
+      if (currentDate !== selectedDate) {
+        // Date has changed, refresh data and update selected date
+        loadData();
+        setSelectedDate(currentDate);
+        setSelectedTimeSlots([]); // Clear selections when date changes
+      }
+    };
+
+    // Check immediately on mount
+    checkDateChange();
+
+    // Check for date changes every 10 seconds (reduced from 30s for faster response)
+    const interval = setInterval(checkDateChange, 10000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [loadData]); // Removed selectedDate from dependencies to prevent interval re-creation
+
+  // Real-time date monitoring for side panel
+  useEffect(() => {
+    const monitorDateChange = () => {
+      // Use local date calculation
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const currentDate = `${year}-${month}-${day}`;
+      const todayDateString = getTodayDateString();
+
+      if (currentDate !== todayDateString) {
+        // Date has changed, refresh everything
+        loadData();
+        setSelectedDate(currentDate);
+        setSelectedTimeSlots([]);
+        // Force side panel refresh if it's visible
+        if (isTodayPanelVisible) {
+          setRefreshTrigger((prev) => prev + 1);
+          setSidePanelRefresh((prev) => prev + 1);
+        }
+      }
+    };
+
+    // Check immediately on mount
+    monitorDateChange();
+
+    // Check every 10 seconds for date changes (reduced from 30s)
+    const interval = setInterval(monitorDateChange, 10000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [loadData]); // Removed isTodayPanelVisible from dependencies
 
   const handleLogout = async () => {
     try {
@@ -429,6 +494,10 @@ export default function BookingScreen({ navigation }) {
   // Simple panel toggle function
   const toggleTodayPanel = () => {
     setIsTodayPanelVisible(!isTodayPanelVisible);
+    // Force refresh when opening side panel
+    if (!isTodayPanelVisible) {
+      setSidePanelRefresh((prev) => prev + 1);
+    }
   };
 
   // Enhanced main content tap handler
@@ -437,7 +506,6 @@ export default function BookingScreen({ navigation }) {
       // Close the side panel when main content is tapped
       setIsTodayPanelVisible(false);
       translateX.value = withSpring(0);
-      console.log("Main content tapped - closing side panel");
     }
   };
 
@@ -1197,7 +1265,6 @@ export default function BookingScreen({ navigation }) {
                   onPress={() => {
                     setIsTodayPanelVisible(false);
                     translateX.value = withSpring(0);
-                    console.log("Close button tapped - closing side panel");
                   }}
                   style={styles.sidePanelCloseButton}
                 >
@@ -1205,66 +1272,77 @@ export default function BookingScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={styles.sidePanelScrollView}>
+              <ScrollView
+                style={styles.sidePanelScrollView}
+                key={`side-panel-${selectedDate}-${sidePanelRefresh}`}
+              >
                 {(() => {
-                  const individualSlots = getTodayBookingsWithDetails();
-                  console.log(
-                    "Side Panel - Individual time slots:",
-                    individualSlots
-                  );
+                  // Use selectedDate instead of calculating current date
+                  const currentDate = selectedDate;
+
+                  const individualSlots =
+                    getTodayBookingsWithDetails(currentDate);
+
                   return individualSlots.length > 0;
                 })() ? (
-                  getTodayBookingsWithDetails().map((slot, index) => (
-                    <View key={slot.id} style={styles.sidePanelBookingCard}>
-                      <Text style={styles.sidePanelBookingTime}>
-                        {slot.timeRange}
-                      </Text>
-                      <Text style={styles.sidePanelBookingName}>
-                        {slot.customerDetails.name}
-                      </Text>
+                  (() => {
+                    // Use selectedDate for consistency
+                    const currentDate = selectedDate;
 
-                      {/* Clean contact info */}
-                      <View style={styles.contactInfoContainer}>
-                        <Text style={styles.contactInfoText}>
-                          {slot.customerDetails.mobile}
-                        </Text>
-                        <Text style={styles.contactInfoText}>
-                          {slot.customerDetails.city}
-                        </Text>
-                      </View>
-
-                      {/* Complete button - only show if not already completed */}
-                      {slot.status !== "completed" && (
-                        <TouchableOpacity
-                          style={styles.completeBookingButton}
-                          onPress={() =>
-                            handleCompleteBooking(
-                              slot.bookingId,
-                              slot.timeSlots
-                            )
-                          }
-                        >
-                          <Text style={styles.completeBookingButtonText}>
-                            Complete
+                    return getTodayBookingsWithDetails(currentDate).map(
+                      (slot, index) => (
+                        <View key={slot.id} style={styles.sidePanelBookingCard}>
+                          <Text style={styles.sidePanelBookingTime}>
+                            {slot.timeRange}
                           </Text>
-                        </TouchableOpacity>
-                      )}
-
-                      {/* Show completed status if already completed */}
-                      {slot.status === "completed" && (
-                        <View style={styles.completedStatusContainer}>
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={20}
-                            color="#10B981"
-                          />
-                          <Text style={styles.completedStatusText}>
-                            Completed
+                          <Text style={styles.sidePanelBookingName}>
+                            {slot.customerDetails.name}
                           </Text>
+
+                          {/* Clean contact info */}
+                          <View style={styles.contactInfoContainer}>
+                            <Text style={styles.contactInfoText}>
+                              {slot.customerDetails.mobile}
+                            </Text>
+                            <Text style={styles.contactInfoText}>
+                              {slot.customerDetails.city}
+                            </Text>
+                          </View>
+
+                          {/* Complete button - only show if not already completed */}
+                          {slot.status !== "completed" && (
+                            <TouchableOpacity
+                              style={styles.completeBookingButton}
+                              onPress={() =>
+                                handleCompleteBooking(
+                                  slot.bookingId,
+                                  slot.timeSlots
+                                )
+                              }
+                            >
+                              <Text style={styles.completeBookingButtonText}>
+                                Complete
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+
+                          {/* Show completed status if already completed */}
+                          {slot.status === "completed" && (
+                            <View style={styles.completedStatusContainer}>
+                              <Ionicons
+                                name="checkmark-circle"
+                                size={20}
+                                color="#10B981"
+                              />
+                              <Text style={styles.completedStatusText}>
+                                Completed
+                              </Text>
+                            </View>
+                          )}
                         </View>
-                      )}
-                    </View>
-                  ))
+                      )
+                    );
+                  })()
                 ) : (
                   <View style={styles.sidePanelBookingCard}>
                     <Text style={styles.sidePanelBookingName}>
