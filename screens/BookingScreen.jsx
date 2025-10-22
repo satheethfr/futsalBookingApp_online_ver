@@ -65,6 +65,7 @@ export default function BookingScreen({ navigation }) {
 
   // Panel state
   const [isTodayPanelVisible, setIsTodayPanelVisible] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const scrollRef = useRef(null);
   const panRef = useRef(null);
 
@@ -98,6 +99,15 @@ export default function BookingScreen({ navigation }) {
 
     return unsubscribe;
   }, [navigation]);
+
+  // Monitor bookings changes for debugging
+  useEffect(() => {
+    console.log("Bookings updated:", bookings.length);
+    const completedBookings = bookings.filter(
+      (booking) => booking.status === "completed"
+    );
+    console.log("Completed bookings:", completedBookings.length);
+  }, [bookings]);
 
   const handleLogout = async () => {
     try {
@@ -222,6 +232,13 @@ export default function BookingScreen({ navigation }) {
     const isSelected = selectedTimeSlots.includes(timeSlot);
     const booking = getBookingForTimeSlot(timeSlot, selectedDate);
     const isCompleted = booking?.status === "completed";
+
+    // Debug log for completed slots
+    if (isCompleted) {
+      console.log(
+        `Time slot ${timeSlot} is completed for booking ${booking?.id}`
+      );
+    }
 
     if (isCompleted) return { status: "completed", booking };
     if (isCancelled) return { status: "cancelled", booking };
@@ -454,6 +471,59 @@ export default function BookingScreen({ navigation }) {
     );
   };
 
+  // Complete booking handler for individual time slots
+  const handleCompleteBooking = async (bookingId, timeSlots) => {
+    const slotCount = timeSlots.length;
+    const slotText = slotCount === 1 ? "this time slot" : "these time slots";
+
+    Alert.alert(
+      "Complete Booking",
+      `Mark ${slotText} as completed?\n\nThis will lock the slot and mark it as finished.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Complete",
+          style: "default",
+          onPress: async () => {
+            try {
+              // Update booking status to "completed" in Supabase
+              const { data, error } = await supabase
+                .from("bookings")
+                .update({ status: "completed" })
+                .eq("id", bookingId);
+
+              if (error) throw error;
+
+              console.log("Booking completed successfully");
+
+              // Force immediate refresh of data to update UI
+              await loadData();
+
+              // Trigger component re-render
+              setRefreshTrigger((prev) => prev + 1);
+
+              // Additional delay to ensure database consistency
+              setTimeout(async () => {
+                await loadData();
+                setRefreshTrigger((prev) => prev + 1);
+                console.log("Secondary refresh completed");
+              }, 500);
+            } catch (error) {
+              console.error("Complete booking error:", error);
+              Alert.alert(
+                "Error",
+                "Failed to complete booking. Please try again."
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "available":
@@ -461,8 +531,9 @@ export default function BookingScreen({ navigation }) {
       case "selected":
         return COLORS.primary; // Green
       case "booked":
-      case "completed":
         return COLORS.background; // Light gray
+      case "completed":
+        return "#E8F5E8"; // Light green background for completed
       case "cancelled":
         return COLORS.background; // Light gray
       default:
@@ -1031,7 +1102,7 @@ export default function BookingScreen({ navigation }) {
 
                   return (
                     <TouchableOpacity
-                      key={timeSlot}
+                      key={`${timeSlot}-${refreshTrigger}`}
                       style={[
                         styles.timeSlot,
                         { backgroundColor: getStatusColor(status) },
@@ -1044,6 +1115,7 @@ export default function BookingScreen({ navigation }) {
                       onLongPress={() => handleLongPress(timeSlot)}
                       disabled={isDisabled}
                     >
+                      {/* Time display */}
                       <Text
                         style={[
                           styles.timeSlotText,
@@ -1053,11 +1125,15 @@ export default function BookingScreen({ navigation }) {
                       >
                         {timeSlot}
                       </Text>
+
+                      {/* Selected time range */}
                       {status === "selected" && (
                         <Text style={styles.timeRangeText}>
                           {formatTimeSlotRange(timeSlot)}
                         </Text>
                       )}
+
+                      {/* Customer name for booked/completed */}
                       {booking &&
                         (status === "booked" || status === "completed") && (
                           <Text
@@ -1067,10 +1143,11 @@ export default function BookingScreen({ navigation }) {
                             {booking.customerName}
                           </Text>
                         )}
-                      {/* Removed status text for cleaner look */}
-                      {isBookedOrCompleted && (
-                        <Text style={styles.longPressHint}>
-                          Long press to cancel
+
+                      {/* Status indicators */}
+                      {status === "completed" && (
+                        <Text style={styles.completedShiningText}>
+                          Completed
                         </Text>
                       )}
                     </TouchableOpacity>
@@ -1145,27 +1222,47 @@ export default function BookingScreen({ navigation }) {
                       <Text style={styles.sidePanelBookingName}>
                         {slot.customerDetails.name}
                       </Text>
-                      <Text style={styles.sidePanelBookingPhone}>
-                        📞 {slot.customerDetails.mobile}
-                      </Text>
-                      <Text style={styles.sidePanelBookingCity}>
-                        📍 {slot.customerDetails.city}
-                      </Text>
-                      <Text style={styles.sidePanelBookingStatus}>
-                        Status: {slot.status || "Unknown"}
-                      </Text>
 
-                      {/* Cancel button for this specific time slot */}
-                      <TouchableOpacity
-                        style={styles.cancelBookingButton}
-                        onPress={() =>
-                          handleCancelBooking(slot.bookingId, slot.timeSlots)
-                        }
-                      >
-                        <Text style={styles.cancelBookingButtonText}>
-                          Cancel This Slot
+                      {/* Clean contact info */}
+                      <View style={styles.contactInfoContainer}>
+                        <Text style={styles.contactInfoText}>
+                          {slot.customerDetails.mobile}
                         </Text>
-                      </TouchableOpacity>
+                        <Text style={styles.contactInfoText}>
+                          {slot.customerDetails.city}
+                        </Text>
+                      </View>
+
+                      {/* Complete button - only show if not already completed */}
+                      {slot.status !== "completed" && (
+                        <TouchableOpacity
+                          style={styles.completeBookingButton}
+                          onPress={() =>
+                            handleCompleteBooking(
+                              slot.bookingId,
+                              slot.timeSlots
+                            )
+                          }
+                        >
+                          <Text style={styles.completeBookingButtonText}>
+                            Complete
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Show completed status if already completed */}
+                      {slot.status === "completed" && (
+                        <View style={styles.completedStatusContainer}>
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={20}
+                            color="#10B981"
+                          />
+                          <Text style={styles.completedStatusText}>
+                            Completed
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   ))
                 ) : (
@@ -1501,7 +1598,7 @@ const styles = StyleSheet.create({
   },
   timeSlot: {
     width: "30%",
-    height: 60,
+    height: 70,
     marginBottom: SPACING.sm,
     borderRadius: RADIUS.lg,
     justifyContent: "center",
@@ -1510,6 +1607,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     ...SHADOWS.light,
+    paddingVertical: 4,
   },
   disabledSlot: {
     opacity: 0.5,
@@ -1531,43 +1629,108 @@ const styles = StyleSheet.create({
   },
   bookedSlotText: {
     color: COLORS.textSecondary,
-    textDecorationLine: "line-through",
+    // Removed textDecorationLine: "line-through" for cleaner look
   },
   bookedStatusText: {
     color: COLORS.textSecondary,
     fontSize: 10,
   },
   longPressHint: {
-    fontSize: 9, // Slightly larger
-    color: COLORS.textTertiary, // Use theme color
+    fontSize: 6, // Smaller for elegant look
+    color: "#9CA3AF", // Silver/gray color
     fontStyle: "italic",
-    marginTop: 3, // Better spacing
-    fontWeight: "400",
+    marginTop: 1, // Reduced spacing
+    fontWeight: "300", // Very light weight
+    lineHeight: 7,
+    fontFamily: "System", // Clean system font
+  },
+  completedShiningText: {
+    fontSize: 12, // Increased by 3 more (9 + 3 = 12)
+    color: "#9CA3AF", // Same silver/gray color as longPressHint
+    fontStyle: "italic",
+    marginTop: 1, // Reduced spacing
+    fontWeight: "500", // Medium weight for shine effect
+    lineHeight: 13, // Adjusted line height for larger text
+    fontFamily: "System", // Clean system font
+    textShadowColor: "#9CA3AF", // Silver shadow for shine
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 2, // Small glow effect
+  },
+  completedHint: {
+    fontSize: 9,
+    color: "#10B981", // Green color for completed
+    fontStyle: "italic",
+    marginTop: 3,
+    fontWeight: "600",
+  },
+  completedSlot: {
+    borderWidth: 2,
+    borderColor: "#10B981",
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  completedSlotText: {
+    color: "#6B7280", // Silver color for elegant look
+    fontWeight: "600",
+  },
+  completedStatusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  completedStatusCompact: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    borderRadius: 8,
+  },
+  completedTextCompact: {
+    fontSize: 6, // Smaller for elegant look
+    color: "#10B981",
+    fontWeight: "500", // Lighter weight
+    marginLeft: 2,
+    lineHeight: 7,
+    fontFamily: "System", // Clean system font
   },
   timeSlotText: {
-    fontSize: 18, // Larger font for better readability
-    fontWeight: "700", // Bolder weight for better visibility
-    color: COLORS.textPrimary, // Dark gray text
+    fontSize: 14, // Smaller for more elegant look
+    fontWeight: "600", // Medium-bold weight
+    color: "#6B7280", // Silver/gray color
     textAlign: "center",
+    lineHeight: 16, // Tighter line height
+    fontFamily: "System", // Clean system font
   },
   selectedSlotText: {
     color: COLORS.surface, // White text for selected slots
   },
   timeRangeText: {
-    fontSize: 11, // Slightly larger for better readability
+    fontSize: 8, // Smaller for elegant look
     color: COLORS.surface, // White text for selected slots
     textAlign: "center",
-    marginTop: 2, // Small margin from time
+    marginTop: 1, // Reduced margin
     opacity: 0.9,
-    fontWeight: "500",
+    fontWeight: "400", // Lighter weight
+    lineHeight: 9,
+    fontFamily: "System", // Clean system font
   },
   customerNameText: {
-    fontSize: 10, // Larger for better readability
-    color: COLORS.textSecondary, // Gray text for booked slots
+    fontSize: 12, // 2 less than timeSlotText (14 - 2 = 12)
+    color: "#10B981", // Green color for better visibility
     textAlign: "center",
-    marginTop: 2, // Small margin from time
-    fontWeight: "600", // Bolder for better visibility
-    opacity: 0.9,
+    marginTop: 1, // Reduced margin
+    fontWeight: "300", // Light weight
+    opacity: 0.9, // Good visibility with green
+    maxWidth: "75%", // Good fit
+    lineHeight: 14, // Proportional line height
+    fontFamily: "System", // Clean system font
   },
   statusText: {
     fontSize: 10,
@@ -1852,6 +2015,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
+  completeBookingButton: {
+    backgroundColor: "#10B981",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 8,
+    alignSelf: "flex-start",
+  },
+  completeBookingButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  completedStatusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  completedStatusText: {
+    color: "#10B981",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  contactInfoContainer: {
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  contactInfoText: {
+    fontSize: 13,
+    color: "#666",
+    marginBottom: 2,
+    fontWeight: "500",
+  },
   todayPanelHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1950,7 +2147,7 @@ const styles = StyleSheet.create({
   customerDetails: {
     flex: 1,
   },
-  customerNameText: {
+  sidePanelCustomerNameText: {
     ...TYPOGRAPHY.h4,
     color: COLORS.textPrimary,
     marginBottom: 4,

@@ -434,7 +434,9 @@ export function AppProvider({ children }) {
   // Helper functions (keep existing logic)
   const isTimeSlotBooked = (timeSlot, date) => {
     const dayBookings = state.bookings.filter(
-      (booking) => booking.date === date && booking.status === "confirmed"
+      (booking) =>
+        booking.date === date &&
+        (booking.status === "confirmed" || booking.status === "completed")
     );
 
     return dayBookings.some(
@@ -458,7 +460,9 @@ export function AppProvider({ children }) {
 
   const getBookingForTimeSlot = (timeSlot, date) => {
     const dayBookings = state.bookings.filter(
-      (booking) => booking.date === date && booking.status === "confirmed"
+      (booking) =>
+        booking.date === date &&
+        (booking.status === "confirmed" || booking.status === "completed")
     );
 
     return dayBookings.find((booking) => booking.timeSlots.includes(timeSlot));
