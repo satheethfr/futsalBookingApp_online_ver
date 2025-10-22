@@ -1,5 +1,5 @@
 // screens/BookingScreen.jsx
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -8,9 +8,17 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { PanGestureHandler, State } from "react-native-gesture-handler";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from "react-native-reanimated";
 import { useApp } from "../context/AppContext";
 import { supabase } from "../lib/supabase";
 import {
@@ -21,9 +29,12 @@ import {
   RADIUS,
 } from "../constants/theme";
 
+const { width: screenWidth } = Dimensions.get("window");
+
 export default function BookingScreen({ navigation }) {
   const {
     bookings,
+    customers,
     isLoading,
     isOffline,
     isUsingCache,
@@ -31,6 +42,8 @@ export default function BookingScreen({ navigation }) {
     isTimeSlotCancelled,
     getBookingForTimeSlot,
     getTodayBookings,
+    getTodayBookingsWithDetails,
+    cancelBooking,
     loadData,
     updateCustomerBookingCount,
     updateCustomerCancellationCount,
@@ -50,6 +63,15 @@ export default function BookingScreen({ navigation }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [timeFilter, setTimeFilter] = useState("all");
 
+  // Panel state
+  const [isTodayPanelVisible, setIsTodayPanelVisible] = useState(false);
+  const scrollRef = useRef(null);
+  const panRef = useRef(null);
+
+  // Swipe gesture values
+  const translateX = useSharedValue(0);
+  const panelWidth = screenWidth * 0.8;
+
   // Add logout button to header
   useEffect(() => {
     navigation.setOptions({
@@ -65,6 +87,17 @@ export default function BookingScreen({ navigation }) {
   useEffect(() => {
     loadData();
   }, []); // Empty dependency array means this only runs once on mount
+
+  // Clear selected time slots when returning to this screen
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      // Clear selected time slots when screen comes into focus
+      setSelectedTimeSlots([]);
+      console.log("BookingScreen focused - cleared selected time slots");
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const handleLogout = async () => {
     try {
@@ -287,7 +320,9 @@ export default function BookingScreen({ navigation }) {
           .update({
             cancelled_slots: updatedCancelledSlots,
             status:
-              updatedCancelledSlots.length > 0 ? "cancelled" : "confirmed",
+              updatedCancelledSlots.length === booking.timeSlots.length
+                ? "cancelled"
+                : "confirmed",
           })
           .eq("id", booking.id);
 
@@ -342,6 +377,73 @@ export default function BookingScreen({ navigation }) {
     });
   };
 
+  // Gesture handler for swipe
+  const gestureHandler = (event) => {
+    "worklet";
+    const { translationX, state } = event.nativeEvent;
+
+    if (state === State.BEGAN) {
+      // Gesture started
+    } else if (state === State.ACTIVE) {
+      // Handle left-to-right swipe (positive translationX)
+      if (translationX > 0) {
+        translateX.value = Math.min(translationX, panelWidth);
+      }
+    } else if (state === State.END) {
+      if (translationX > panelWidth * 0.3) {
+        // Show panel
+        translateX.value = withSpring(panelWidth);
+        runOnJS(setIsTodayPanelVisible)(true);
+      } else {
+        // Hide panel
+        translateX.value = withSpring(0);
+        runOnJS(setIsTodayPanelVisible)(false);
+      }
+    }
+  };
+
+  // Animated styles
+  const animatedMainStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: -translateX.value }],
+    };
+  });
+
+  // Simple panel toggle function
+  const toggleTodayPanel = () => {
+    setIsTodayPanelVisible(!isTodayPanelVisible);
+  };
+
+  // Enhanced cancel booking handler for individual time slots
+  const handleCancelBooking = async (bookingId, timeSlots) => {
+    const slotCount = timeSlots.length;
+    const slotText = slotCount === 1 ? "this time slot" : "these time slots";
+
+    Alert.alert(
+      "Cancel Booking",
+      `Are you sure you want to cancel ${slotText}?\n\nThis will make the slot(s) available for new bookings.`,
+      [
+        {
+          text: "No",
+          style: "cancel",
+        },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: async () => {
+            // Pass the specific time slots as cancelled slots
+            const cancelledSlots = timeSlots || [];
+            const result = await cancelBooking(bookingId, cancelledSlots);
+            if (result.success) {
+              console.log("Time slot(s) cancelled successfully");
+              // The real-time subscription will update the side panel
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "available":
@@ -382,6 +484,8 @@ export default function BookingScreen({ navigation }) {
     );
   }, 0);
 
+  // Removed complex TodayBookingsPanel - using simple inline content
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -393,263 +497,371 @@ export default function BookingScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollViewContent}
-        showsVerticalScrollIndicator={true}
-        bounces={true}
+      <PanGestureHandler
+        ref={panRef}
+        onHandlerStateChange={gestureHandler}
+        activeOffsetX={10}
+        failOffsetY={[-10, 10]}
+        simultaneousHandlers={scrollRef}
       >
-        {/* A2 Sports Park Header */}
-        <View style={styles.headerSection}>
-          <View style={styles.headerGradient}>
-            <Text style={styles.headerTitle}>A2 Sports Park</Text>
-            <Text style={styles.headerSubtitle}>
-              Premium Futsal Court Booking
-            </Text>
-            <View style={styles.headerAccent} />
-            <View style={styles.headerAccent2} />
-          </View>
-        </View>
-
-        {/* Compact Calendar Display */}
-        <View style={styles.calendarSection}>
-          <Text style={styles.calendarSectionTitle}>Select Date</Text>
-          <View style={styles.fullCalendar}>
-            <View style={styles.calendarHeader}>
-              <TouchableOpacity
-                onPress={() => {
-                  const newMonth = new Date(selectedDate);
-                  newMonth.setMonth(newMonth.getMonth() - 1);
-                  const year = newMonth.getFullYear();
-                  const month = String(newMonth.getMonth() + 1).padStart(
-                    2,
-                    "0"
-                  );
-                  const day = String(newMonth.getDate()).padStart(2, "0");
-                  setSelectedDate(`${year}-${month}-${day}`);
-                }}
-                style={styles.calendarNavButton}
-              >
-                <Ionicons
-                  name="chevron-back"
-                  size={18}
-                  color={COLORS.textSecondary}
-                />
-              </TouchableOpacity>
-
-              <Text style={styles.calendarMonthYear}>
-                {new Date(selectedDate).toLocaleDateString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                })}
-              </Text>
-
-              <TouchableOpacity
-                onPress={() => {
-                  const newMonth = new Date(selectedDate);
-                  newMonth.setMonth(newMonth.getMonth() + 1);
-                  const year = newMonth.getFullYear();
-                  const month = String(newMonth.getMonth() + 1).padStart(
-                    2,
-                    "0"
-                  );
-                  const day = String(newMonth.getDate()).padStart(2, "0");
-                  setSelectedDate(`${year}-${month}-${day}`);
-                }}
-                style={styles.calendarNavButton}
-              >
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color={COLORS.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Day Headers */}
-            <View style={styles.dayHeaders}>
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <Text key={day} style={styles.dayHeader}>
-                  {day}
+        <Animated.View style={[styles.mainContent, animatedMainStyle]}>
+          <ScrollView
+            ref={scrollRef}
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollViewContent}
+            showsVerticalScrollIndicator={true}
+            bounces={true}
+            simultaneousHandlers={panRef}
+          >
+            {/* A2 Sports Park Header */}
+            <View style={styles.headerSection}>
+              <View style={styles.headerGradient}>
+                <Text style={styles.headerTitle}>A2 Sports Park</Text>
+                <Text style={styles.headerSubtitle}>
+                  Premium Futsal Court Booking
                 </Text>
-              ))}
+                <View style={styles.headerAccent} />
+                <View style={styles.headerAccent2} />
+              </View>
             </View>
 
-            {/* Fixed Calendar Grid */}
-            <View style={styles.fixedCalendarGrid}>
-              {getCalendarDays(selectedDate).map((day, index) => (
-                <View key={index} style={styles.calendarDayContainer}>
+            {/* Compact Calendar Display */}
+            <View style={styles.calendarSection}>
+              <Text style={styles.calendarSectionTitle}>Select Date</Text>
+              <View style={styles.fullCalendar}>
+                <View style={styles.calendarHeader}>
                   <TouchableOpacity
+                    onPress={() => {
+                      const newMonth = new Date(selectedDate);
+                      newMonth.setMonth(newMonth.getMonth() - 1);
+                      const year = newMonth.getFullYear();
+                      const month = String(newMonth.getMonth() + 1).padStart(
+                        2,
+                        "0"
+                      );
+                      const day = String(newMonth.getDate()).padStart(2, "0");
+                      setSelectedDate(`${year}-${month}-${day}`);
+                    }}
+                    style={styles.calendarNavButton}
+                  >
+                    <Ionicons
+                      name="chevron-back"
+                      size={18}
+                      color={COLORS.textSecondary}
+                    />
+                  </TouchableOpacity>
+
+                  <Text style={styles.calendarMonthYear}>
+                    {new Date(selectedDate).toLocaleDateString("en-US", {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      const newMonth = new Date(selectedDate);
+                      newMonth.setMonth(newMonth.getMonth() + 1);
+                      const year = newMonth.getFullYear();
+                      const month = String(newMonth.getMonth() + 1).padStart(
+                        2,
+                        "0"
+                      );
+                      const day = String(newMonth.getDate()).padStart(2, "0");
+                      setSelectedDate(`${year}-${month}-${day}`);
+                    }}
+                    style={styles.calendarNavButton}
+                  >
+                    <Ionicons
+                      name="chevron-forward"
+                      size={18}
+                      color={COLORS.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Day Headers */}
+                <View style={styles.dayHeaders}>
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                    (day) => (
+                      <Text key={day} style={styles.dayHeader}>
+                        {day}
+                      </Text>
+                    )
+                  )}
+                </View>
+
+                {/* Fixed Calendar Grid */}
+                <View style={styles.fixedCalendarGrid}>
+                  {getCalendarDays(selectedDate).map((day, index) => (
+                    <View key={index} style={styles.calendarDayContainer}>
+                      <TouchableOpacity
+                        style={[
+                          styles.fixedCalendarDay,
+                          day && isToday(day) && styles.todayDay,
+                          day && isSelected(day) && styles.selectedDay,
+                          day && isDisabled(day) && styles.disabledDay,
+                        ]}
+                        onPress={() =>
+                          day && !isDisabled(day) && handleDateSelect(day)
+                        }
+                        disabled={!day || isDisabled(day)}
+                      >
+                        <Text
+                          style={[
+                            styles.fixedCalendarDayText,
+                            day && isToday(day) && styles.todayText,
+                            day && isSelected(day) && styles.selectedText,
+                            day && isDisabled(day) && styles.disabledText,
+                          ]}
+                        >
+                          {day ? day.getDate() : ""}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            {/* Time Filter Buttons */}
+            <View style={styles.filterContainer}>
+              <Text style={styles.filterTitle}>Time Filters</Text>
+              <View style={styles.filterButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    timeFilter === "all" && styles.activeFilterButton,
+                  ]}
+                  onPress={() => setTimeFilter("all")}
+                >
+                  <Text
                     style={[
-                      styles.fixedCalendarDay,
-                      day && isToday(day) && styles.todayDay,
-                      day && isSelected(day) && styles.selectedDay,
-                      day && isDisabled(day) && styles.disabledDay,
+                      styles.filterButtonText,
+                      timeFilter === "all" && styles.activeFilterButtonText,
+                    ]}
+                  >
+                    All
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    timeFilter === "early-bird" && styles.activeFilterButton,
+                  ]}
+                  onPress={() => setTimeFilter("early-bird")}
+                >
+                  <Text
+                    style={[
+                      styles.filterButtonText,
+                      timeFilter === "early-bird" &&
+                        styles.activeFilterButtonText,
+                    ]}
+                  >
+                    Early Bird
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    timeFilter === "day-shift" && styles.activeFilterButton,
+                  ]}
+                  onPress={() => setTimeFilter("day-shift")}
+                >
+                  <Text
+                    style={[
+                      styles.filterButtonText,
+                      timeFilter === "day-shift" &&
+                        styles.activeFilterButtonText,
+                    ]}
+                  >
+                    Day Shift
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    timeFilter === "prime-time" && styles.activeFilterButton,
+                  ]}
+                  onPress={() => setTimeFilter("prime-time")}
+                >
+                  <Text
+                    style={[
+                      styles.filterButtonText,
+                      timeFilter === "prime-time" &&
+                        styles.activeFilterButtonText,
+                    ]}
+                  >
+                    Prime Time
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Simple Panel Toggle Button */}
+            <TouchableOpacity
+              style={styles.simpleToggleButton}
+              onPress={() => {
+                console.log("Toggle button pressed!");
+                setIsTodayPanelVisible(!isTodayPanelVisible);
+              }}
+            >
+              <Text style={styles.simpleToggleButtonText}>
+                {isTodayPanelVisible ? "Hide" : "Show"} Today's Bookings
+              </Text>
+            </TouchableOpacity>
+
+            {/* Time Slots Grid */}
+            <Text style={styles.timeSlotsTitle}>Available Time Slots</Text>
+            <View style={styles.timeSlotsGrid}>
+              {filteredTimeSlots.map((timeSlot) => {
+                const slotInfo = getTimeSlotStatus(timeSlot);
+                const { status, booking } = slotInfo;
+                const isDisabled = isOffline || isUsingCache || isProcessing;
+                const isBookedOrCompleted =
+                  status === "booked" || status === "completed";
+
+                return (
+                  <TouchableOpacity
+                    key={timeSlot}
+                    style={[
+                      styles.timeSlot,
+                      { backgroundColor: getStatusColor(status) },
+                      isDisabled && styles.disabledSlot,
+                      isBookedOrCompleted && styles.bookedSlot,
                     ]}
                     onPress={() =>
-                      day && !isDisabled(day) && handleDateSelect(day)
+                      !isBookedOrCompleted && handleTimeSlotPress(timeSlot)
                     }
-                    disabled={!day || isDisabled(day)}
+                    onLongPress={() => handleLongPress(timeSlot)}
+                    disabled={isDisabled}
                   >
                     <Text
                       style={[
-                        styles.fixedCalendarDayText,
-                        day && isToday(day) && styles.todayText,
-                        day && isSelected(day) && styles.selectedText,
-                        day && isDisabled(day) && styles.disabledText,
+                        styles.timeSlotText,
+                        status === "selected" && styles.selectedSlotText,
+                        isBookedOrCompleted && styles.bookedSlotText,
                       ]}
                     >
-                      {day ? day.getDate() : ""}
+                      {timeSlot}
                     </Text>
+                    {status === "selected" && (
+                      <Text style={styles.timeRangeText}>
+                        {formatTimeSlotRange(timeSlot)}
+                      </Text>
+                    )}
+                    {booking &&
+                      (status === "booked" || status === "completed") && (
+                        <Text style={styles.customerNameText} numberOfLines={1}>
+                          {booking.customerName}
+                        </Text>
+                      )}
+                    {/* Removed status text for cleaner look */}
+                    {isBookedOrCompleted && (
+                      <Text style={styles.longPressHint}>
+                        Long press to cancel
+                      </Text>
+                    )}
                   </TouchableOpacity>
-                </View>
-              ))}
+                );
+              })}
+            </View>
+
+            {/* Proceed Button - Only show when slots are selected */}
+            {selectedTimeSlots.length > 0 && (
+              <TouchableOpacity
+                style={[
+                  styles.proceedButton,
+                  (isOffline || isUsingCache) && styles.disabledButton,
+                ]}
+                onPress={handleProceedToBook}
+                disabled={isOffline || isUsingCache}
+              >
+                <Text style={styles.proceedButtonText}>
+                  {isOffline || isUsingCache
+                    ? "Offline Mode - Actions Disabled"
+                    : `Proceed to Book (${selectedTimeSlots.length} slots)`}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+        </Animated.View>
+      </PanGestureHandler>
+
+      {/* Simplified Side Panel - Always visible when toggled */}
+      {isTodayPanelVisible && (
+        <View style={styles.sidePanelOverlay}>
+          <TouchableOpacity
+            style={styles.sidePanelBackdrop}
+            onPress={() => setIsTodayPanelVisible(false)}
+          />
+          <View style={styles.sidePanelContainer}>
+            <View style={styles.sidePanelContent}>
+              <View style={styles.sidePanelHeader}>
+                <Text style={styles.sidePanelTitle}>Today's Bookings</Text>
+                <TouchableOpacity
+                  onPress={() => setIsTodayPanelVisible(false)}
+                  style={styles.sidePanelCloseButton}
+                >
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.sidePanelScrollView}>
+                {(() => {
+                  const individualSlots = getTodayBookingsWithDetails();
+                  console.log(
+                    "Side Panel - Individual time slots:",
+                    individualSlots
+                  );
+                  return individualSlots.length > 0;
+                })() ? (
+                  getTodayBookingsWithDetails().map((slot, index) => (
+                    <View key={slot.id} style={styles.sidePanelBookingCard}>
+                      <Text style={styles.sidePanelBookingTime}>
+                        {slot.timeRange}
+                      </Text>
+                      <Text style={styles.sidePanelBookingName}>
+                        {slot.customerDetails.name}
+                      </Text>
+                      <Text style={styles.sidePanelBookingPhone}>
+                        📞 {slot.customerDetails.mobile}
+                      </Text>
+                      <Text style={styles.sidePanelBookingCity}>
+                        📍 {slot.customerDetails.city}
+                      </Text>
+                      <Text style={styles.sidePanelBookingStatus}>
+                        Status: {slot.status || "Unknown"}
+                      </Text>
+
+                      {/* Cancel button for this specific time slot */}
+                      <TouchableOpacity
+                        style={styles.cancelBookingButton}
+                        onPress={() =>
+                          handleCancelBooking(slot.bookingId, slot.timeSlots)
+                        }
+                      >
+                        <Text style={styles.cancelBookingButtonText}>
+                          Cancel This Slot
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.sidePanelBookingCard}>
+                    <Text style={styles.sidePanelBookingName}>
+                      No bookings for today
+                    </Text>
+                    <Text style={styles.sidePanelBookingPhone}>
+                      Check back later!
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
             </View>
           </View>
         </View>
-
-        {/* Time Filter Buttons */}
-        <View style={styles.filterContainer}>
-          <Text style={styles.filterTitle}>Time Filters</Text>
-          <View style={styles.filterButtons}>
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                timeFilter === "all" && styles.activeFilterButton,
-              ]}
-              onPress={() => setTimeFilter("all")}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  timeFilter === "all" && styles.activeFilterButtonText,
-                ]}
-              >
-                All
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                timeFilter === "early-bird" && styles.activeFilterButton,
-              ]}
-              onPress={() => setTimeFilter("early-bird")}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  timeFilter === "early-bird" && styles.activeFilterButtonText,
-                ]}
-              >
-                Early Bird
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                timeFilter === "day-shift" && styles.activeFilterButton,
-              ]}
-              onPress={() => setTimeFilter("day-shift")}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  timeFilter === "day-shift" && styles.activeFilterButtonText,
-                ]}
-              >
-                Day Shift
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                timeFilter === "prime-time" && styles.activeFilterButton,
-              ]}
-              onPress={() => setTimeFilter("prime-time")}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  timeFilter === "prime-time" && styles.activeFilterButtonText,
-                ]}
-              >
-                Prime Time
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Time Slots Grid */}
-        <Text style={styles.timeSlotsTitle}>Available Time Slots</Text>
-        <View style={styles.timeSlotsGrid}>
-          {filteredTimeSlots.map((timeSlot) => {
-            const slotInfo = getTimeSlotStatus(timeSlot);
-            const { status, booking } = slotInfo;
-            const isDisabled = isOffline || isUsingCache || isProcessing;
-            const isBookedOrCompleted =
-              status === "booked" || status === "completed";
-
-            return (
-              <TouchableOpacity
-                key={timeSlot}
-                style={[
-                  styles.timeSlot,
-                  { backgroundColor: getStatusColor(status) },
-                  isDisabled && styles.disabledSlot,
-                  isBookedOrCompleted && styles.bookedSlot,
-                ]}
-                onPress={() =>
-                  !isBookedOrCompleted && handleTimeSlotPress(timeSlot)
-                }
-                onLongPress={() => handleLongPress(timeSlot)}
-                disabled={isDisabled}
-              >
-                <Text
-                  style={[
-                    styles.timeSlotText,
-                    status === "selected" && styles.selectedSlotText,
-                    isBookedOrCompleted && styles.bookedSlotText,
-                  ]}
-                >
-                  {timeSlot}
-                </Text>
-                {status === "selected" && (
-                  <Text style={styles.timeRangeText}>
-                    {formatTimeSlotRange(timeSlot)}
-                  </Text>
-                )}
-                {booking && (status === "booked" || status === "completed") && (
-                  <Text style={styles.customerNameText} numberOfLines={1}>
-                    {booking.customerName}
-                  </Text>
-                )}
-                {/* Removed status text for cleaner look */}
-                {isBookedOrCompleted && (
-                  <Text style={styles.longPressHint}>Long press to cancel</Text>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Proceed Button - Only show when slots are selected */}
-        {selectedTimeSlots.length > 0 && (
-          <TouchableOpacity
-            style={[
-              styles.proceedButton,
-              (isOffline || isUsingCache) && styles.disabledButton,
-            ]}
-            onPress={handleProceedToBook}
-            disabled={isOffline || isUsingCache}
-          >
-            <Text style={styles.proceedButtonText}>
-              {isOffline || isUsingCache
-                ? "Offline Mode - Actions Disabled"
-                : `Proceed to Book (${selectedTimeSlots.length} slots)`}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+      )}
     </View>
   );
 }
@@ -962,23 +1174,21 @@ const styles = StyleSheet.create({
   timeSlotsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "flex-start", // Changed from space-between to flex-start for proper 3-column layout
-    alignContent: "flex-start",
-    gap: SPACING.sm, // 12px gap between slots for better 3-column fit
+    justifyContent: "space-between",
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.md, // 16px bottom padding for time slots grid
+    paddingBottom: SPACING.md,
   },
   timeSlot: {
-    width: "30%", // Precise 30% for 3 columns
-    height: 60, // Fixed height for better consistency
-    marginBottom: 0,
-    borderRadius: RADIUS.lg, // Larger radius for modern look
+    width: "30%",
+    height: 60,
+    marginBottom: SPACING.sm,
+    borderRadius: RADIUS.lg,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.surface, // White background
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.border, // Light gray border
-    ...SHADOWS.light, // Subtle shadow for card-like appearance
+    borderColor: COLORS.border,
+    ...SHADOWS.light,
   },
   disabledSlot: {
     opacity: 0.5,
@@ -1133,5 +1343,360 @@ const styles = StyleSheet.create({
   selectedDay: {
     backgroundColor: "#007AFF",
     borderRadius: 20,
+  },
+  simplePanel: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "#ffffff",
+  },
+  simplePanelTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  simplePanelSubtitle: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  simpleBookingCard: {
+    backgroundColor: "#f0f0f0",
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: "#10B981",
+  },
+  simpleBookingTime: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#10B981",
+    marginBottom: 5,
+  },
+  simpleBookingName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 5,
+  },
+  simpleBookingPhone: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 3,
+  },
+  simpleBookingCity: {
+    fontSize: 14,
+    color: "#666",
+  },
+  simpleCloseBtn: {
+    backgroundColor: "#10B981",
+    padding: 15,
+    borderRadius: 10,
+    marginTop: 20,
+    alignItems: "center",
+  },
+  simpleCloseBtnText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  simpleToggleButton: {
+    backgroundColor: "#10B981",
+    padding: 15,
+    borderRadius: 10,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    alignItems: "center",
+  },
+  simpleToggleButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  mainContent: {
+    flex: 1,
+  },
+  sidePanelOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9999,
+  },
+  sidePanelBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.3)",
+  },
+  sidePanelContainer: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: "80%",
+    backgroundColor: "#ffffff",
+    shadowColor: "#000",
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  sidePanelContent: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "#ffffff",
+    minHeight: "100%",
+  },
+  debugPanelText: {
+    color: "red",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  sidePanelHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  sidePanelTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  sidePanelCloseButton: {
+    padding: 5,
+  },
+  sidePanelScrollView: {
+    flex: 1,
+  },
+  sidePanelBookingCard: {
+    backgroundColor: "#f8f9fa",
+    padding: 15,
+    marginBottom: 12,
+    borderRadius: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: "#10B981",
+  },
+  sidePanelBookingTime: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#10B981",
+    marginBottom: 5,
+  },
+  sidePanelBookingName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 5,
+  },
+  sidePanelBookingPhone: {
+    fontSize: 13,
+    color: "#666",
+    marginBottom: 3,
+  },
+  sidePanelBookingCity: {
+    fontSize: 13,
+    color: "#666",
+  },
+  sidePanelBookingStatus: {
+    fontSize: 11,
+    color: COLORS.primary,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  cancelBookingButton: {
+    backgroundColor: "#ff4444",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginTop: 8,
+    alignSelf: "flex-start",
+  },
+  cancelBookingButtonText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  todayPanelHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: SPACING.lg,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  todayPanelTitle: {
+    ...TYPOGRAPHY.h2,
+    color: COLORS.textPrimary,
+  },
+  todayPanelSubtitle: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  todayBookingsContent: {
+    flex: 1,
+  },
+  todayBookingsList: {
+    flex: 1,
+  },
+  todayBookingsScrollContent: {
+    paddingBottom: SPACING.lg,
+  },
+  slotTimeHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+  timeSlotBadge: {
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.md,
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  bookingItemHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+  bookingTimeContainer: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.md,
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  bookingTimeText: {
+    color: COLORS.surface,
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  statusBadge: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.sm,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  customerInfoSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+  customerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: SPACING.sm,
+  },
+  customerAvatarText: {
+    color: COLORS.surface,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  customerDetails: {
+    flex: 1,
+  },
+  customerNameText: {
+    ...TYPOGRAPHY.h4,
+    color: COLORS.textPrimary,
+    marginBottom: 4,
+    fontWeight: "600",
+  },
+  customerContactInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  contactItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  contactText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    marginLeft: 4,
+    fontSize: 12,
+  },
+  timeRangeSection: {
+    backgroundColor: COLORS.background,
+    padding: SPACING.xs,
+    borderRadius: RADIUS.sm,
+    alignItems: "center",
+  },
+  bookingDetails: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  bookingDateText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    fontWeight: "500",
+  },
+  bookingSlotsCount: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primary,
+    fontWeight: "600",
+  },
+  bookingStatusText: {
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  emptyTodayBookings: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: SPACING.xxl,
+    paddingHorizontal: SPACING.lg,
+  },
+  emptyTodayText: {
+    ...TYPOGRAPHY.h3,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.md,
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  emptyTodaySubtext: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textTertiary,
+    marginTop: SPACING.xs,
+    textAlign: "center",
+  },
+  debugText: {
+    fontSize: 12,
+    color: COLORS.error,
+    marginTop: SPACING.sm,
+    textAlign: "center",
   },
 });

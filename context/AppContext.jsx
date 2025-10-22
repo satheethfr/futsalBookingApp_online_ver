@@ -500,9 +500,144 @@ export function AppProvider({ children }) {
 
   const getTodayBookings = () => {
     const today = new Date().toISOString().split("T")[0];
-    return state.bookings.filter(
-      (booking) => booking.date === today && booking.status === "confirmed"
+
+    // Filter bookings for today and only confirmed/pending status (exclude cancelled)
+    const todayBookings = state.bookings.filter(
+      (booking) => booking.date === today && booking.status !== "cancelled"
     );
+
+    console.log("getTodayBookings - Today:", today);
+    console.log("getTodayBookings - All bookings:", state.bookings.length);
+    console.log(
+      "getTodayBookings - Today's active bookings:",
+      todayBookings.length
+    );
+
+    return todayBookings;
+  };
+
+  // Helper function to get next hour for time ranges
+  const getNextHour = (timeString) => {
+    const [hours, minutes] = timeString.split(":").map(Number);
+    const nextHour = (hours + 1) % 24;
+    return `${nextHour.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
+  // Helper function to format time slots as readable ranges
+  const formatTimeSlotsAsRanges = (timeSlots) => {
+    if (!timeSlots || timeSlots.length === 0) return ["No time specified"];
+
+    return timeSlots.map((slot) => {
+      if (typeof slot === "string") {
+        // If slot is just a time string like "09:00"
+        return `${slot} - ${getNextHour(slot)}`;
+      } else if (slot.start_time && slot.end_time) {
+        // If slot has start and end times
+        return `${slot.start_time} - ${slot.end_time}`;
+      } else if (slot.start_time) {
+        // If only start time is available
+        return `${slot.start_time} - ${getNextHour(slot.start_time)}`;
+      }
+      return "Time not specified";
+    });
+  };
+
+  // Helper function for better time sorting
+  const parseTimeForSorting = (timeString) => {
+    if (!timeString || timeString === "99:99") return 9999; // Put at end
+
+    const [hours, minutes] = timeString.split(":").map(Number);
+    return hours * 60 + minutes; // Convert to minutes for accurate sorting
+  };
+
+  // Enhanced function to get today's bookings with individual time slot cards
+  const getTodayBookingsWithDetails = () => {
+    const todayBookings = getTodayBookings();
+
+    // Create individual cards for each time slot
+    const individualSlots = [];
+
+    todayBookings.forEach((booking) => {
+      const customer = state.customers.find((c) => c.id === booking.customerId);
+      const customerDetails = customer
+        ? {
+            name: customer.name,
+            mobile: customer.mobile,
+            city: customer.city,
+          }
+        : {
+            name: booking.customerName || "Unknown Customer",
+            mobile: "N/A",
+            city: "N/A",
+          };
+
+      // Process each time slot as a separate booking card
+      if (booking.timeSlots && booking.timeSlots.length > 0) {
+        booking.timeSlots.forEach((slot, slotIndex) => {
+          // Check if this specific slot is cancelled
+          const isSlotCancelled =
+            booking.cancelledSlots && booking.cancelledSlots.includes(slot);
+
+          // Skip cancelled slots - only show active slots
+          if (isSlotCancelled) {
+            console.log(
+              `Skipping cancelled slot: ${slot} for booking ${booking.id}`
+            );
+            return; // Skip this slot
+          }
+
+          let timeRange;
+          let sortTime;
+
+          if (typeof slot === "string") {
+            // If slot is just a time string like "09:00"
+            timeRange = `${slot} - ${getNextHour(slot)}`;
+            sortTime = slot;
+          } else if (slot.start_time && slot.end_time) {
+            // If slot has start and end times
+            timeRange = `${slot.start_time} - ${slot.end_time}`;
+            sortTime = slot.start_time;
+          } else if (slot.start_time) {
+            // If only start time is available
+            timeRange = `${slot.start_time} - ${getNextHour(slot.start_time)}`;
+            sortTime = slot.start_time;
+          } else {
+            timeRange = "Time not specified";
+            sortTime = "99:99"; // Put at end for sorting
+          }
+
+          individualSlots.push({
+            id: `${booking.id}-${slotIndex}`, // Unique ID for each slot
+            bookingId: booking.id, // Original booking ID for cancellation
+            customerDetails,
+            timeRange,
+            sortTime, // For sorting
+            status: booking.status,
+            timeSlots: [slot], // Single slot for this card
+          });
+        });
+      } else {
+        // Handle bookings without time slots
+        individualSlots.push({
+          id: `${booking.id}-no-slot`,
+          bookingId: booking.id,
+          customerDetails,
+          timeRange: "No time specified",
+          sortTime: "99:99",
+          status: booking.status,
+          timeSlots: [],
+        });
+      }
+    });
+
+    // Sort by time (00:00 to 23:00)
+    return individualSlots.sort((a, b) => {
+      const timeA = parseTimeForSorting(a.sortTime);
+      const timeB = parseTimeForSorting(b.sortTime);
+      return timeA - timeB;
+    });
   };
 
   // Helper functions for updating customer statistics
@@ -571,6 +706,8 @@ export function AppProvider({ children }) {
     getCancelledBookings,
     getCurrentBookings,
     getTodayBookings,
+    getTodayBookingsWithDetails,
+    cancelBooking,
     loadData,
     updateCustomerBookingCount,
     updateCustomerCancellationCount,
