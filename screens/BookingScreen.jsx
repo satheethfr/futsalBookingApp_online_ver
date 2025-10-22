@@ -414,6 +414,16 @@ export default function BookingScreen({ navigation }) {
     setIsTodayPanelVisible(!isTodayPanelVisible);
   };
 
+  // Enhanced main content tap handler
+  const handleMainContentTap = () => {
+    if (isTodayPanelVisible) {
+      // Close the side panel when main content is tapped
+      setIsTodayPanelVisible(false);
+      translateX.value = withSpring(0);
+      console.log("Main content tapped - closing side panel");
+    }
+  };
+
   // Enhanced cancel booking handler for individual time slots
   const handleCancelBooking = async (bookingId, timeSlots) => {
     const slotCount = timeSlots.length;
@@ -505,286 +515,588 @@ export default function BookingScreen({ navigation }) {
         simultaneousHandlers={scrollRef}
       >
         <Animated.View style={[styles.mainContent, animatedMainStyle]}>
-          <ScrollView
-            ref={scrollRef}
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollViewContent}
-            showsVerticalScrollIndicator={true}
-            bounces={true}
-            simultaneousHandlers={panRef}
-          >
-            {/* A2 Sports Park Header */}
-            <View style={styles.headerSection}>
-              <View style={styles.headerGradient}>
-                <Text style={styles.headerTitle}>A2 Sports Park</Text>
-                <Text style={styles.headerSubtitle}>
-                  Premium Futsal Court Booking
-                </Text>
-                <View style={styles.headerAccent} />
-                <View style={styles.headerAccent2} />
-              </View>
-            </View>
-
-            {/* Compact Calendar Display */}
-            <View style={styles.calendarSection}>
-              <Text style={styles.calendarSectionTitle}>Select Date</Text>
-              <View style={styles.fullCalendar}>
-                <View style={styles.calendarHeader}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      const newMonth = new Date(selectedDate);
-                      newMonth.setMonth(newMonth.getMonth() - 1);
-                      const year = newMonth.getFullYear();
-                      const month = String(newMonth.getMonth() + 1).padStart(
-                        2,
-                        "0"
-                      );
-                      const day = String(newMonth.getDate()).padStart(2, "0");
-                      setSelectedDate(`${year}-${month}-${day}`);
-                    }}
-                    style={styles.calendarNavButton}
-                  >
-                    <Ionicons
-                      name="chevron-back"
-                      size={18}
-                      color={COLORS.textSecondary}
-                    />
-                  </TouchableOpacity>
-
-                  <Text style={styles.calendarMonthYear}>
-                    {new Date(selectedDate).toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </Text>
-
-                  <TouchableOpacity
-                    onPress={() => {
-                      const newMonth = new Date(selectedDate);
-                      newMonth.setMonth(newMonth.getMonth() + 1);
-                      const year = newMonth.getFullYear();
-                      const month = String(newMonth.getMonth() + 1).padStart(
-                        2,
-                        "0"
-                      );
-                      const day = String(newMonth.getDate()).padStart(2, "0");
-                      setSelectedDate(`${year}-${month}-${day}`);
-                    }}
-                    style={styles.calendarNavButton}
-                  >
-                    <Ionicons
-                      name="chevron-forward"
-                      size={18}
-                      color={COLORS.textSecondary}
-                    />
-                  </TouchableOpacity>
+          {isTodayPanelVisible ? (
+            <TouchableOpacity
+              style={styles.mainContentTouchable}
+              onPress={handleMainContentTap}
+              activeOpacity={1} // Prevent visual feedback since it's just for closing panel
+            >
+              <ScrollView
+                ref={scrollRef}
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollViewContent}
+                showsVerticalScrollIndicator={true}
+                bounces={true}
+                simultaneousHandlers={panRef}
+              >
+                {/* A2 Sports Park Header */}
+                <View style={styles.headerSection}>
+                  <View style={styles.headerGradient}>
+                    <Text style={styles.headerTitle}>A2 Sports Park</Text>
+                    <Text style={styles.headerSubtitle}>
+                      Premium Futsal Court Booking
+                    </Text>
+                    <View style={styles.headerAccent} />
+                    <View style={styles.headerAccent2} />
+                  </View>
                 </View>
 
-                {/* Day Headers */}
-                <View style={styles.dayHeaders}>
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                    (day) => (
-                      <Text key={day} style={styles.dayHeader}>
-                        {day}
-                      </Text>
-                    )
-                  )}
-                </View>
-
-                {/* Fixed Calendar Grid */}
-                <View style={styles.fixedCalendarGrid}>
-                  {getCalendarDays(selectedDate).map((day, index) => (
-                    <View key={index} style={styles.calendarDayContainer}>
+                {/* Compact Calendar Display */}
+                <View style={styles.calendarSection}>
+                  <Text style={styles.calendarSectionTitle}>Select Date</Text>
+                  <View style={styles.fullCalendar}>
+                    <View style={styles.calendarHeader}>
                       <TouchableOpacity
+                        onPress={() => {
+                          const newMonth = new Date(selectedDate);
+                          newMonth.setMonth(newMonth.getMonth() - 1);
+                          const year = newMonth.getFullYear();
+                          const month = String(
+                            newMonth.getMonth() + 1
+                          ).padStart(2, "0");
+                          const day = String(newMonth.getDate()).padStart(
+                            2,
+                            "0"
+                          );
+                          setSelectedDate(`${year}-${month}-${day}`);
+                        }}
+                        style={styles.calendarNavButton}
+                      >
+                        <Ionicons
+                          name="chevron-back"
+                          size={18}
+                          color={COLORS.textSecondary}
+                        />
+                      </TouchableOpacity>
+
+                      <Text style={styles.calendarMonthYear}>
+                        {new Date(selectedDate).toLocaleDateString("en-US", {
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </Text>
+
+                      <TouchableOpacity
+                        onPress={() => {
+                          const newMonth = new Date(selectedDate);
+                          newMonth.setMonth(newMonth.getMonth() + 1);
+                          const year = newMonth.getFullYear();
+                          const month = String(
+                            newMonth.getMonth() + 1
+                          ).padStart(2, "0");
+                          const day = String(newMonth.getDate()).padStart(
+                            2,
+                            "0"
+                          );
+                          setSelectedDate(`${year}-${month}-${day}`);
+                        }}
+                        style={styles.calendarNavButton}
+                      >
+                        <Ionicons
+                          name="chevron-forward"
+                          size={18}
+                          color={COLORS.textSecondary}
+                        />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Day Headers */}
+                    <View style={styles.dayHeaders}>
+                      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                        (day) => (
+                          <Text key={day} style={styles.dayHeader}>
+                            {day}
+                          </Text>
+                        )
+                      )}
+                    </View>
+
+                    {/* Fixed Calendar Grid */}
+                    <View style={styles.fixedCalendarGrid}>
+                      {getCalendarDays(selectedDate).map((day, index) => (
+                        <View key={index} style={styles.calendarDayContainer}>
+                          <TouchableOpacity
+                            style={[
+                              styles.fixedCalendarDay,
+                              day && isToday(day) && styles.todayDay,
+                              day && isSelected(day) && styles.selectedDay,
+                              day && isDisabled(day) && styles.disabledDay,
+                            ]}
+                            onPress={() =>
+                              day && !isDisabled(day) && handleDateSelect(day)
+                            }
+                            disabled={!day || isDisabled(day)}
+                          >
+                            <Text
+                              style={[
+                                styles.fixedCalendarDayText,
+                                day && isToday(day) && styles.todayText,
+                                day && isSelected(day) && styles.selectedText,
+                                day && isDisabled(day) && styles.disabledText,
+                              ]}
+                            >
+                              {day ? day.getDate() : ""}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {/* Time Filter Buttons */}
+                <View style={styles.filterContainer}>
+                  <Text style={styles.filterTitle}>Time Filters</Text>
+                  <View style={styles.filterButtons}>
+                    <TouchableOpacity
+                      style={[
+                        styles.filterButton,
+                        timeFilter === "all" && styles.activeFilterButton,
+                      ]}
+                      onPress={() => setTimeFilter("all")}
+                    >
+                      <Text
                         style={[
-                          styles.fixedCalendarDay,
-                          day && isToday(day) && styles.todayDay,
-                          day && isSelected(day) && styles.selectedDay,
-                          day && isDisabled(day) && styles.disabledDay,
+                          styles.filterButtonText,
+                          timeFilter === "all" && styles.activeFilterButtonText,
+                        ]}
+                      >
+                        All
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.filterButton,
+                        timeFilter === "early-bird" &&
+                          styles.activeFilterButton,
+                      ]}
+                      onPress={() => setTimeFilter("early-bird")}
+                    >
+                      <Text
+                        style={[
+                          styles.filterButtonText,
+                          timeFilter === "early-bird" &&
+                            styles.activeFilterButtonText,
+                        ]}
+                      >
+                        Early Bird
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.filterButton,
+                        timeFilter === "day-shift" && styles.activeFilterButton,
+                      ]}
+                      onPress={() => setTimeFilter("day-shift")}
+                    >
+                      <Text
+                        style={[
+                          styles.filterButtonText,
+                          timeFilter === "day-shift" &&
+                            styles.activeFilterButtonText,
+                        ]}
+                      >
+                        Day Shift
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.filterButton,
+                        timeFilter === "prime-time" &&
+                          styles.activeFilterButton,
+                      ]}
+                      onPress={() => setTimeFilter("prime-time")}
+                    >
+                      <Text
+                        style={[
+                          styles.filterButtonText,
+                          timeFilter === "prime-time" &&
+                            styles.activeFilterButtonText,
+                        ]}
+                      >
+                        Prime Time
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Simple Panel Toggle Button */}
+                <TouchableOpacity
+                  style={styles.simpleToggleButton}
+                  onPress={() => {
+                    console.log("Toggle button pressed!");
+                    setIsTodayPanelVisible(!isTodayPanelVisible);
+                  }}
+                >
+                  <Text style={styles.simpleToggleButtonText}>
+                    {isTodayPanelVisible ? "Hide" : "Show"} Today's Bookings
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Time Slots Grid */}
+                <Text style={styles.timeSlotsTitle}>Available Time Slots</Text>
+                <View style={styles.timeSlotsGrid}>
+                  {filteredTimeSlots.map((timeSlot) => {
+                    const slotInfo = getTimeSlotStatus(timeSlot);
+                    const { status, booking } = slotInfo;
+                    const isDisabled =
+                      isOffline || isUsingCache || isProcessing;
+                    const isBookedOrCompleted =
+                      status === "booked" || status === "completed";
+
+                    return (
+                      <TouchableOpacity
+                        key={timeSlot}
+                        style={[
+                          styles.timeSlot,
+                          { backgroundColor: getStatusColor(status) },
+                          isDisabled && styles.disabledSlot,
+                          isBookedOrCompleted && styles.bookedSlot,
                         ]}
                         onPress={() =>
-                          day && !isDisabled(day) && handleDateSelect(day)
+                          !isBookedOrCompleted && handleTimeSlotPress(timeSlot)
                         }
-                        disabled={!day || isDisabled(day)}
+                        onLongPress={() => handleLongPress(timeSlot)}
+                        disabled={isDisabled}
                       >
                         <Text
                           style={[
-                            styles.fixedCalendarDayText,
-                            day && isToday(day) && styles.todayText,
-                            day && isSelected(day) && styles.selectedText,
-                            day && isDisabled(day) && styles.disabledText,
+                            styles.timeSlotText,
+                            status === "selected" && styles.selectedSlotText,
+                            isBookedOrCompleted && styles.bookedSlotText,
                           ]}
                         >
-                          {day ? day.getDate() : ""}
+                          {timeSlot}
                         </Text>
+                        {status === "selected" && (
+                          <Text style={styles.timeRangeText}>
+                            {formatTimeSlotRange(timeSlot)}
+                          </Text>
+                        )}
+                        {booking &&
+                          (status === "booked" || status === "completed") && (
+                            <Text
+                              style={styles.customerNameText}
+                              numberOfLines={1}
+                            >
+                              {booking.customerName}
+                            </Text>
+                          )}
+                        {/* Removed status text for cleaner look */}
+                        {isBookedOrCompleted && (
+                          <Text style={styles.longPressHint}>
+                            Long press to cancel
+                          </Text>
+                        )}
                       </TouchableOpacity>
-                    </View>
-                  ))}
+                    );
+                  })}
+                </View>
+
+                {/* Proceed Button - Only show when slots are selected */}
+                {selectedTimeSlots.length > 0 && (
+                  <TouchableOpacity
+                    style={[
+                      styles.proceedButton,
+                      (isOffline || isUsingCache) && styles.disabledButton,
+                    ]}
+                    onPress={handleProceedToBook}
+                    disabled={isOffline || isUsingCache}
+                  >
+                    <Text style={styles.proceedButtonText}>
+                      {isOffline || isUsingCache
+                        ? "Offline Mode - Actions Disabled"
+                        : `Proceed to Book (${selectedTimeSlots.length} slots)`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+            </TouchableOpacity>
+          ) : (
+            <ScrollView
+              ref={scrollRef}
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollViewContent}
+              showsVerticalScrollIndicator={true}
+              bounces={true}
+              simultaneousHandlers={panRef}
+            >
+              {/* A2 Sports Park Header */}
+              <View style={styles.headerSection}>
+                <View style={styles.headerGradient}>
+                  <Text style={styles.headerTitle}>A2 Sports Park</Text>
+                  <Text style={styles.headerSubtitle}>
+                    Premium Futsal Court Booking
+                  </Text>
+                  <View style={styles.headerAccent} />
+                  <View style={styles.headerAccent2} />
                 </View>
               </View>
-            </View>
 
-            {/* Time Filter Buttons */}
-            <View style={styles.filterContainer}>
-              <Text style={styles.filterTitle}>Time Filters</Text>
-              <View style={styles.filterButtons}>
-                <TouchableOpacity
-                  style={[
-                    styles.filterButton,
-                    timeFilter === "all" && styles.activeFilterButton,
-                  ]}
-                  onPress={() => setTimeFilter("all")}
-                >
-                  <Text
-                    style={[
-                      styles.filterButtonText,
-                      timeFilter === "all" && styles.activeFilterButtonText,
-                    ]}
-                  >
-                    All
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.filterButton,
-                    timeFilter === "early-bird" && styles.activeFilterButton,
-                  ]}
-                  onPress={() => setTimeFilter("early-bird")}
-                >
-                  <Text
-                    style={[
-                      styles.filterButtonText,
-                      timeFilter === "early-bird" &&
-                        styles.activeFilterButtonText,
-                    ]}
-                  >
-                    Early Bird
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.filterButton,
-                    timeFilter === "day-shift" && styles.activeFilterButton,
-                  ]}
-                  onPress={() => setTimeFilter("day-shift")}
-                >
-                  <Text
-                    style={[
-                      styles.filterButtonText,
-                      timeFilter === "day-shift" &&
-                        styles.activeFilterButtonText,
-                    ]}
-                  >
-                    Day Shift
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.filterButton,
-                    timeFilter === "prime-time" && styles.activeFilterButton,
-                  ]}
-                  onPress={() => setTimeFilter("prime-time")}
-                >
-                  <Text
-                    style={[
-                      styles.filterButtonText,
-                      timeFilter === "prime-time" &&
-                        styles.activeFilterButtonText,
-                    ]}
-                  >
-                    Prime Time
-                  </Text>
-                </TouchableOpacity>
+              {/* Compact Calendar Display */}
+              <View style={styles.calendarSection}>
+                <Text style={styles.calendarSectionTitle}>Select Date</Text>
+                <View style={styles.fullCalendar}>
+                  <View style={styles.calendarHeader}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        const newMonth = new Date(selectedDate);
+                        newMonth.setMonth(newMonth.getMonth() - 1);
+                        const year = newMonth.getFullYear();
+                        const month = String(newMonth.getMonth() + 1).padStart(
+                          2,
+                          "0"
+                        );
+                        const day = String(newMonth.getDate()).padStart(2, "0");
+                        setSelectedDate(`${year}-${month}-${day}`);
+                      }}
+                      style={styles.calendarNavButton}
+                    >
+                      <Ionicons
+                        name="chevron-back"
+                        size={18}
+                        color={COLORS.textSecondary}
+                      />
+                    </TouchableOpacity>
+
+                    <Text style={styles.calendarMonthYear}>
+                      {new Date(selectedDate).toLocaleDateString("en-US", {
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </Text>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        const newMonth = new Date(selectedDate);
+                        newMonth.setMonth(newMonth.getMonth() + 1);
+                        const year = newMonth.getFullYear();
+                        const month = String(newMonth.getMonth() + 1).padStart(
+                          2,
+                          "0"
+                        );
+                        const day = String(newMonth.getDate()).padStart(2, "0");
+                        setSelectedDate(`${year}-${month}-${day}`);
+                      }}
+                      style={styles.calendarNavButton}
+                    >
+                      <Ionicons
+                        name="chevron-forward"
+                        size={18}
+                        color={COLORS.textSecondary}
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Day Headers */}
+                  <View style={styles.dayHeaders}>
+                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                      (day) => (
+                        <Text key={day} style={styles.dayHeader}>
+                          {day}
+                        </Text>
+                      )
+                    )}
+                  </View>
+
+                  {/* Fixed Calendar Grid */}
+                  <View style={styles.fixedCalendarGrid}>
+                    {getCalendarDays(selectedDate).map((day, index) => (
+                      <View key={index} style={styles.calendarDayContainer}>
+                        <TouchableOpacity
+                          style={[
+                            styles.fixedCalendarDay,
+                            day && isToday(day) && styles.todayDay,
+                            day && isSelected(day) && styles.selectedDay,
+                            day && isDisabled(day) && styles.disabledDay,
+                          ]}
+                          onPress={() =>
+                            day && !isDisabled(day) && handleDateSelect(day)
+                          }
+                          disabled={!day || isDisabled(day)}
+                        >
+                          <Text
+                            style={[
+                              styles.fixedCalendarDayText,
+                              day && isToday(day) && styles.todayText,
+                              day && isSelected(day) && styles.selectedText,
+                              day && isDisabled(day) && styles.disabledText,
+                            ]}
+                          >
+                            {day ? day.getDate() : ""}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                </View>
               </View>
-            </View>
 
-            {/* Simple Panel Toggle Button */}
-            <TouchableOpacity
-              style={styles.simpleToggleButton}
-              onPress={() => {
-                console.log("Toggle button pressed!");
-                setIsTodayPanelVisible(!isTodayPanelVisible);
-              }}
-            >
-              <Text style={styles.simpleToggleButtonText}>
-                {isTodayPanelVisible ? "Hide" : "Show"} Today's Bookings
-              </Text>
-            </TouchableOpacity>
-
-            {/* Time Slots Grid */}
-            <Text style={styles.timeSlotsTitle}>Available Time Slots</Text>
-            <View style={styles.timeSlotsGrid}>
-              {filteredTimeSlots.map((timeSlot) => {
-                const slotInfo = getTimeSlotStatus(timeSlot);
-                const { status, booking } = slotInfo;
-                const isDisabled = isOffline || isUsingCache || isProcessing;
-                const isBookedOrCompleted =
-                  status === "booked" || status === "completed";
-
-                return (
+              {/* Time Filter Buttons */}
+              <View style={styles.filterContainer}>
+                <Text style={styles.filterTitle}>Time Filters</Text>
+                <View style={styles.filterButtons}>
                   <TouchableOpacity
-                    key={timeSlot}
                     style={[
-                      styles.timeSlot,
-                      { backgroundColor: getStatusColor(status) },
-                      isDisabled && styles.disabledSlot,
-                      isBookedOrCompleted && styles.bookedSlot,
+                      styles.filterButton,
+                      timeFilter === "all" && styles.activeFilterButton,
                     ]}
-                    onPress={() =>
-                      !isBookedOrCompleted && handleTimeSlotPress(timeSlot)
-                    }
-                    onLongPress={() => handleLongPress(timeSlot)}
-                    disabled={isDisabled}
+                    onPress={() => setTimeFilter("all")}
                   >
                     <Text
                       style={[
-                        styles.timeSlotText,
-                        status === "selected" && styles.selectedSlotText,
-                        isBookedOrCompleted && styles.bookedSlotText,
+                        styles.filterButtonText,
+                        timeFilter === "all" && styles.activeFilterButtonText,
                       ]}
                     >
-                      {timeSlot}
+                      All
                     </Text>
-                    {status === "selected" && (
-                      <Text style={styles.timeRangeText}>
-                        {formatTimeSlotRange(timeSlot)}
-                      </Text>
-                    )}
-                    {booking &&
-                      (status === "booked" || status === "completed") && (
-                        <Text style={styles.customerNameText} numberOfLines={1}>
-                          {booking.customerName}
-                        </Text>
-                      )}
-                    {/* Removed status text for cleaner look */}
-                    {isBookedOrCompleted && (
-                      <Text style={styles.longPressHint}>
-                        Long press to cancel
-                      </Text>
-                    )}
                   </TouchableOpacity>
-                );
-              })}
-            </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterButton,
+                      timeFilter === "early-bird" && styles.activeFilterButton,
+                    ]}
+                    onPress={() => setTimeFilter("early-bird")}
+                  >
+                    <Text
+                      style={[
+                        styles.filterButtonText,
+                        timeFilter === "early-bird" &&
+                          styles.activeFilterButtonText,
+                      ]}
+                    >
+                      Early Bird
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterButton,
+                      timeFilter === "day-shift" && styles.activeFilterButton,
+                    ]}
+                    onPress={() => setTimeFilter("day-shift")}
+                  >
+                    <Text
+                      style={[
+                        styles.filterButtonText,
+                        timeFilter === "day-shift" &&
+                          styles.activeFilterButtonText,
+                      ]}
+                    >
+                      Day Shift
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterButton,
+                      timeFilter === "prime-time" && styles.activeFilterButton,
+                    ]}
+                    onPress={() => setTimeFilter("prime-time")}
+                  >
+                    <Text
+                      style={[
+                        styles.filterButtonText,
+                        timeFilter === "prime-time" &&
+                          styles.activeFilterButtonText,
+                      ]}
+                    >
+                      Prime Time
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-            {/* Proceed Button - Only show when slots are selected */}
-            {selectedTimeSlots.length > 0 && (
+              {/* Simple Panel Toggle Button */}
               <TouchableOpacity
-                style={[
-                  styles.proceedButton,
-                  (isOffline || isUsingCache) && styles.disabledButton,
-                ]}
-                onPress={handleProceedToBook}
-                disabled={isOffline || isUsingCache}
+                style={styles.simpleToggleButton}
+                onPress={() => {
+                  console.log("Toggle button pressed!");
+                  setIsTodayPanelVisible(!isTodayPanelVisible);
+                }}
               >
-                <Text style={styles.proceedButtonText}>
-                  {isOffline || isUsingCache
-                    ? "Offline Mode - Actions Disabled"
-                    : `Proceed to Book (${selectedTimeSlots.length} slots)`}
+                <Text style={styles.simpleToggleButtonText}>
+                  {isTodayPanelVisible ? "Hide" : "Show"} Today's Bookings
                 </Text>
               </TouchableOpacity>
-            )}
-          </ScrollView>
+
+              {/* Time Slots Grid */}
+              <Text style={styles.timeSlotsTitle}>Available Time Slots</Text>
+              <View style={styles.timeSlotsGrid}>
+                {filteredTimeSlots.map((timeSlot) => {
+                  const slotInfo = getTimeSlotStatus(timeSlot);
+                  const { status, booking } = slotInfo;
+                  const isDisabled = isOffline || isUsingCache || isProcessing;
+                  const isBookedOrCompleted =
+                    status === "booked" || status === "completed";
+
+                  return (
+                    <TouchableOpacity
+                      key={timeSlot}
+                      style={[
+                        styles.timeSlot,
+                        { backgroundColor: getStatusColor(status) },
+                        isDisabled && styles.disabledSlot,
+                        isBookedOrCompleted && styles.bookedSlot,
+                      ]}
+                      onPress={() =>
+                        !isBookedOrCompleted && handleTimeSlotPress(timeSlot)
+                      }
+                      onLongPress={() => handleLongPress(timeSlot)}
+                      disabled={isDisabled}
+                    >
+                      <Text
+                        style={[
+                          styles.timeSlotText,
+                          status === "selected" && styles.selectedSlotText,
+                          isBookedOrCompleted && styles.bookedSlotText,
+                        ]}
+                      >
+                        {timeSlot}
+                      </Text>
+                      {status === "selected" && (
+                        <Text style={styles.timeRangeText}>
+                          {formatTimeSlotRange(timeSlot)}
+                        </Text>
+                      )}
+                      {booking &&
+                        (status === "booked" || status === "completed") && (
+                          <Text
+                            style={styles.customerNameText}
+                            numberOfLines={1}
+                          >
+                            {booking.customerName}
+                          </Text>
+                        )}
+                      {/* Removed status text for cleaner look */}
+                      {isBookedOrCompleted && (
+                        <Text style={styles.longPressHint}>
+                          Long press to cancel
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Proceed Button - Only show when slots are selected */}
+              {selectedTimeSlots.length > 0 && (
+                <TouchableOpacity
+                  style={[
+                    styles.proceedButton,
+                    (isOffline || isUsingCache) && styles.disabledButton,
+                  ]}
+                  onPress={handleProceedToBook}
+                  disabled={isOffline || isUsingCache}
+                >
+                  <Text style={styles.proceedButtonText}>
+                    {isOffline || isUsingCache
+                      ? "Offline Mode - Actions Disabled"
+                      : `Proceed to Book (${selectedTimeSlots.length} slots)`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          )}
         </Animated.View>
       </PanGestureHandler>
 
@@ -793,14 +1105,23 @@ export default function BookingScreen({ navigation }) {
         <View style={styles.sidePanelOverlay}>
           <TouchableOpacity
             style={styles.sidePanelBackdrop}
-            onPress={() => setIsTodayPanelVisible(false)}
+            onPress={() => {
+              setIsTodayPanelVisible(false);
+              translateX.value = withSpring(0);
+              console.log("Backdrop tapped - closing side panel");
+            }}
+            activeOpacity={0.8}
           />
           <View style={styles.sidePanelContainer}>
             <View style={styles.sidePanelContent}>
               <View style={styles.sidePanelHeader}>
                 <Text style={styles.sidePanelTitle}>Today's Bookings</Text>
                 <TouchableOpacity
-                  onPress={() => setIsTodayPanelVisible(false)}
+                  onPress={() => {
+                    setIsTodayPanelVisible(false);
+                    translateX.value = withSpring(0);
+                    console.log("Close button tapped - closing side panel");
+                  }}
                   style={styles.sidePanelCloseButton}
                 >
                   <Ionicons name="close" size={24} color="#666" />
@@ -1417,6 +1738,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   mainContent: {
+    flex: 1,
+  },
+  mainContentTouchable: {
     flex: 1,
   },
   sidePanelOverlay: {
