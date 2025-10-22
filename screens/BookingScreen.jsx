@@ -1245,7 +1245,7 @@ export default function BookingScreen({ navigation }) {
         </Animated.View>
       </PanGestureHandler>
 
-      {/* Simplified Side Panel - Always visible when toggled */}
+      {/* Modern Side Panel - Professional Design */}
       {isTodayPanelVisible && (
         <View style={styles.sidePanelOverlay}>
           <TouchableOpacity
@@ -1253,103 +1253,156 @@ export default function BookingScreen({ navigation }) {
             onPress={() => {
               setIsTodayPanelVisible(false);
               translateX.value = withSpring(0);
-              console.log("Backdrop tapped - closing side panel");
             }}
             activeOpacity={0.8}
           />
           <View style={styles.sidePanelContainer}>
             <View style={styles.sidePanelContent}>
-              <View style={styles.sidePanelHeader}>
-                <Text style={styles.sidePanelTitle}>Today's Bookings</Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setIsTodayPanelVisible(false);
-                    translateX.value = withSpring(0);
-                  }}
-                  style={styles.sidePanelCloseButton}
-                >
-                  <Ionicons name="close" size={24} color="#666" />
-                </TouchableOpacity>
+              {/* Modern Header with Gradient */}
+              <View style={styles.modernSidePanelHeader}>
+                <View style={styles.headerContent}>
+                  <View style={styles.headerIconContainer}>
+                    <Ionicons
+                      name="calendar"
+                      size={24}
+                      color={COLORS.surface}
+                    />
+                  </View>
+                  <View style={styles.headerTextContainer}>
+                    <Text style={styles.modernSidePanelTitle}>
+                      Today's Bookings
+                    </Text>
+                    <Text style={styles.modernSidePanelSubtitle}>
+                      {new Date(selectedDate).toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </Text>
+                  </View>
+                </View>
               </View>
 
               <ScrollView
-                style={styles.sidePanelScrollView}
+                style={styles.modernSidePanelScrollView}
                 key={`side-panel-${selectedDate}-${sidePanelRefresh}`}
+                showsVerticalScrollIndicator={true}
+                bounces={true}
+                contentContainerStyle={styles.sidePanelScrollContent}
               >
                 {(() => {
-                  // Use selectedDate instead of calculating current date
                   const currentDate = selectedDate;
-
                   const individualSlots =
                     getTodayBookingsWithDetails(currentDate);
-
                   return individualSlots.length > 0;
                 })() ? (
                   (() => {
-                    // Use selectedDate for consistency
                     const currentDate = selectedDate;
-
                     return getTodayBookingsWithDetails(currentDate).map(
                       (slot, index) => (
-                        <View key={slot.id} style={styles.sidePanelBookingCard}>
-                          <Text style={styles.sidePanelBookingTime}>
-                            {slot.timeRange}
-                          </Text>
-                          <Text style={styles.sidePanelBookingName}>
-                            {slot.customerDetails.name}
-                          </Text>
-
-                          {/* Clean contact info */}
-                          <View style={styles.contactInfoContainer}>
-                            <Text style={styles.contactInfoText}>
-                              {slot.customerDetails.mobile}
-                            </Text>
-                            <Text style={styles.contactInfoText}>
-                              {slot.customerDetails.city}
-                            </Text>
+                        <View key={slot.id} style={styles.modernBookingCard}>
+                          {/* Card Header with Time Badge */}
+                          <View style={styles.cardHeader}>
+                            <View style={styles.timeBadge}>
+                              <Ionicons
+                                name="time"
+                                size={12}
+                                color={COLORS.surface}
+                              />
+                              <Text style={styles.timeBadgeText}>
+                                {slot.timeRange}
+                              </Text>
+                            </View>
+                            {slot.status === "completed" && (
+                              <View style={styles.statusBadge}>
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={14}
+                                  color={COLORS.success}
+                                />
+                                <Text style={styles.statusBadgeText}>
+                                  Completed
+                                </Text>
+                              </View>
+                            )}
                           </View>
 
-                          {/* Complete button - only show if not already completed */}
+                          {/* Customer Information */}
+                          <View style={styles.customerInfoSection}>
+                            <View style={styles.customerAvatar}>
+                              <Text style={styles.customerAvatarText}>
+                                {slot.customerDetails.name
+                                  .charAt(0)
+                                  .toUpperCase()}
+                              </Text>
+                            </View>
+                            <View style={styles.customerDetails}>
+                              <Text style={styles.customerNameText}>
+                                {slot.customerDetails.name}
+                              </Text>
+                              <View style={styles.contactInfoRow}>
+                                <Ionicons
+                                  name="call"
+                                  size={10}
+                                  color={COLORS.textSecondary}
+                                />
+                                <Text style={styles.contactText}>
+                                  {slot.customerDetails.mobile}
+                                </Text>
+                              </View>
+                              <View style={styles.contactInfoRow}>
+                                <Ionicons
+                                  name="location"
+                                  size={10}
+                                  color={COLORS.textSecondary}
+                                />
+                                <Text style={styles.contactText}>
+                                  {slot.customerDetails.city}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+
+                          {/* Action Button */}
                           {slot.status !== "completed" && (
                             <TouchableOpacity
-                              style={styles.completeBookingButton}
+                              style={styles.modernCompleteButton}
                               onPress={() =>
                                 handleCompleteBooking(
                                   slot.bookingId,
                                   slot.timeSlots
                                 )
                               }
+                              activeOpacity={0.8}
                             >
-                              <Text style={styles.completeBookingButtonText}>
-                                Complete
+                              <Ionicons
+                                name="checkmark"
+                                size={14}
+                                color={COLORS.surface}
+                              />
+                              <Text style={styles.modernCompleteButtonText}>
+                                Mark Complete
                               </Text>
                             </TouchableOpacity>
-                          )}
-
-                          {/* Show completed status if already completed */}
-                          {slot.status === "completed" && (
-                            <View style={styles.completedStatusContainer}>
-                              <Ionicons
-                                name="checkmark-circle"
-                                size={20}
-                                color="#10B981"
-                              />
-                              <Text style={styles.completedStatusText}>
-                                Completed
-                              </Text>
-                            </View>
                           )}
                         </View>
                       )
                     );
                   })()
                 ) : (
-                  <View style={styles.sidePanelBookingCard}>
-                    <Text style={styles.sidePanelBookingName}>
-                      No bookings for today
+                  <View style={styles.emptyStateContainer}>
+                    <View style={styles.emptyStateIcon}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={48}
+                        color={COLORS.textTertiary}
+                      />
+                    </View>
+                    <Text style={styles.emptyStateTitle}>
+                      No Bookings Today
                     </Text>
-                    <Text style={styles.sidePanelBookingPhone}>
-                      Check back later!
+                    <Text style={styles.emptyStateSubtitle}>
+                      Check back later for new bookings
                     </Text>
                   </View>
                 )}
@@ -1992,31 +2045,31 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 9999,
   },
+  // Modern Side Panel Styles
   sidePanelBackdrop: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.3)",
+    backgroundColor: "rgba(0,0,0,0.4)",
   },
   sidePanelContainer: {
     position: "absolute",
     top: 0,
     right: 0,
     bottom: 0,
-    width: "80%",
-    backgroundColor: "#ffffff",
+    width: "85%",
+    backgroundColor: COLORS.surface,
     shadowColor: "#000",
-    shadowOffset: { width: -2, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOffset: { width: -4, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
   },
   sidePanelContent: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#ffffff",
+    backgroundColor: COLORS.surface,
     minHeight: "100%",
   },
   debugPanelText: {
@@ -2025,107 +2078,179 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 10,
   },
-  sidePanelHeader: {
+  // Modern Header Styles
+  modernSidePanelHeader: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xl,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    ...SHADOWS.medium,
   },
-  sidePanelTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  sidePanelCloseButton: {
-    padding: 5,
-  },
-  sidePanelScrollView: {
-    flex: 1,
-  },
-  sidePanelBookingCard: {
-    backgroundColor: "#f8f9fa",
-    padding: 15,
-    marginBottom: 12,
-    borderRadius: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: "#10B981",
-  },
-  sidePanelBookingTime: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#10B981",
-    marginBottom: 5,
-  },
-  sidePanelBookingName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 5,
-  },
-  sidePanelBookingPhone: {
-    fontSize: 13,
-    color: "#666",
-    marginBottom: 3,
-  },
-  sidePanelBookingCity: {
-    fontSize: 13,
-    color: "#666",
-  },
-  sidePanelBookingStatus: {
-    fontSize: 11,
-    color: COLORS.primary,
-    fontWeight: "600",
-    marginTop: 2,
-  },
-  cancelBookingButton: {
-    backgroundColor: "#ff4444",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginTop: 8,
-    alignSelf: "flex-start",
-  },
-  cancelBookingButtonText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  completeBookingButton: {
-    backgroundColor: "#10B981",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginTop: 8,
-    alignSelf: "flex-start",
-  },
-  completeBookingButtonText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  completedStatusContainer: {
+  headerContent: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
+    flex: 1,
   },
-  completedStatusText: {
-    color: "#10B981",
+  headerIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: SPACING.md,
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  modernSidePanelTitle: {
+    ...TYPOGRAPHY.h2,
+    color: COLORS.surface,
+    marginBottom: 2,
+  },
+  modernSidePanelSubtitle: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primaryLight,
+    opacity: 0.9,
+  },
+
+  // Compact Scroll View
+  modernSidePanelScrollView: {
+    flex: 1,
+  },
+  sidePanelScrollContent: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.lg, // Small bottom margin for better scroll feel
+  },
+  // Compact Modern Booking Card
+  modernBookingCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    marginHorizontal: 2, // Very small horizontal margin for floating effect
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.light,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+  timeBadge: {
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 4,
+    borderRadius: RADIUS.sm,
+  },
+  timeBadgeText: {
+    fontSize: 12,
+    color: COLORS.surface,
+    fontWeight: "600",
+    marginLeft: 3,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 3,
+    borderRadius: RADIUS.sm,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    color: COLORS.success,
+    fontWeight: "600",
+    marginLeft: 3,
+  },
+  // Compact Customer Information Section
+  customerInfoSection: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: SPACING.sm,
+  },
+  customerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: SPACING.sm,
+    ...SHADOWS.light,
+  },
+  customerAvatarText: {
     fontSize: 14,
+    color: COLORS.surface,
+    fontWeight: "700",
+  },
+  customerDetails: {
+    flex: 1,
+  },
+  customerNameText: {
+    fontSize: 15,
+    color: COLORS.textPrimary,
+    marginBottom: 3,
+    fontWeight: "600",
+  },
+  contactInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 1,
+  },
+  contactText: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginLeft: 4,
+    fontWeight: "500",
+  },
+
+  // Compact Complete Button
+  modernCompleteButton: {
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.sm,
+    ...SHADOWS.light,
+  },
+  modernCompleteButtonText: {
+    fontSize: 13,
+    color: COLORS.surface,
     fontWeight: "600",
     marginLeft: 4,
   },
-  contactInfoContainer: {
-    marginTop: 6,
-    marginBottom: 4,
+
+  // Empty State
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: SPACING.xxl,
+    paddingHorizontal: SPACING.lg,
   },
-  contactInfoText: {
-    fontSize: 13,
-    color: "#666",
-    marginBottom: 2,
-    fontWeight: "500",
+  emptyStateIcon: {
+    marginBottom: SPACING.lg,
+  },
+  emptyStateTitle: {
+    ...TYPOGRAPHY.h3,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.xs,
+    textAlign: "center",
+  },
+  emptyStateSubtitle: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textTertiary,
+    textAlign: "center",
   },
   todayPanelHeader: {
     flexDirection: "row",
