@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  FlatList,
   TextInput,
   Alert,
   ActivityIndicator,
@@ -76,9 +77,7 @@ export default function ConfirmationScreen({ route, navigation }) {
       const result = await addBooking(bookingData);
 
       if (result.success) {
-        // Force refresh of data to ensure UI updates
         await loadData();
-
         Alert.alert("Success", "Booking confirmed successfully!", [
           {
             text: "OK",
@@ -126,60 +125,99 @@ export default function ConfirmationScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* Booking Summary */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleContainer}>
-              <View style={styles.sectionIconCircle}>
-                <Ionicons name="calendar-outline" size={20} color="#007AFF" />
-              </View>
-              <Text style={styles.sectionTitle}>Booking Summary</Text>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+        nestedScrollEnabled={true}
+      >
+        {/* Booking Summary Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.headerIcon}>
+              <Ionicons name="calendar" size={24} color={COLORS.surface} />
+            </View>
+            <View style={styles.headerText}>
+              <Text style={styles.cardTitle}>Booking Summary</Text>
+              <Text style={styles.cardSubtitle}>
+                Review your selected time slots
+              </Text>
             </View>
           </View>
 
-          <View style={styles.bookingDetails}>
-            <Text style={styles.bookingDetailText}>
-              <Text style={styles.bold}>Date:</Text> {selectedDate}
-            </Text>
-            <Text style={styles.bookingDetailText}>
-              <Text style={styles.bold}>Time Slots:</Text>{" "}
-              {selectedTimeSlots.join(", ")}
-            </Text>
-            <Text style={styles.bookingDetailText}>
-              <Text style={styles.bold}>Total Slots:</Text>{" "}
-              {selectedTimeSlots.length}
-            </Text>
+          <View style={styles.bookingInfo}>
+            <View style={styles.infoRow}>
+              <Ionicons
+                name="calendar-outline"
+                size={16}
+                color={COLORS.primary}
+              />
+              <Text style={styles.infoLabel}>Date</Text>
+              <Text style={styles.infoValue}>
+                {new Date(selectedDate).toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </Text>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Ionicons name="time-outline" size={16} color={COLORS.primary} />
+              <Text style={styles.infoLabel}>Time Slots</Text>
+              <Text style={styles.infoValue}>
+                {selectedTimeSlots.join(" • ")}
+              </Text>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Ionicons
+                name="layers-outline"
+                size={16}
+                color={COLORS.primary}
+              />
+              <Text style={styles.infoLabel}>Total Slots</Text>
+              <Text style={styles.infoValue}>
+                {selectedTimeSlots.length} slot
+                {selectedTimeSlots.length !== 1 ? "s" : ""}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Customer Selection */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleContainer}>
-              <View style={styles.sectionIconCircle}>
-                <Ionicons name="people-outline" size={20} color="#007AFF" />
-              </View>
-              <Text style={styles.sectionTitle}>Select Customer</Text>
+        {/* Customer Selection Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.headerIcon}>
+              <Ionicons name="people" size={24} color={COLORS.surface} />
+            </View>
+            <View style={styles.headerText}>
+              <Text style={styles.cardTitle}>Select Customer</Text>
+              <Text style={styles.cardSubtitle}>
+                Choose from existing customers or add new
+              </Text>
             </View>
           </View>
 
           <View style={styles.searchContainer}>
-            <Ionicons
-              name="search-outline"
-              size={20}
-              color="#666"
-              style={styles.searchIcon}
-            />
+            <Ionicons name="search" size={18} color={COLORS.textSecondary} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search customers..."
+              placeholderTextColor={COLORS.textTertiary}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
           </View>
 
-          <View style={styles.customerList}>
+          <ScrollView
+            style={styles.customerListContainer}
+            showsVerticalScrollIndicator={true}
+            bounces={false}
+            nestedScrollEnabled={true}
+          >
             {filteredCustomers.map((customer) => (
               <TouchableOpacity
                 key={customer.id}
@@ -189,80 +227,171 @@ export default function ConfirmationScreen({ route, navigation }) {
                     styles.selectedCustomerItem,
                 ]}
                 onPress={() => setSelectedCustomer(customer)}
+                activeOpacity={0.7}
               >
                 <View style={styles.customerAvatar}>
                   <Text style={styles.customerAvatarText}>
                     {customer.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
-                <View style={styles.customerInfo}>
-                  <Text style={styles.customerName}>{customer.name}</Text>
-                  <Text style={styles.customerDetails}>
-                    {customer.mobile} • {customer.city}
-                  </Text>
+
+                {/* Main Content Section */}
+                <View style={styles.customerMainContent}>
+                  {/* Name and Status Row */}
+                  <View style={styles.customerHeader}>
+                    <Text style={styles.customerName}>{customer.name}</Text>
+                    {selectedCustomer?.id === customer.id && (
+                      <View style={styles.statusBadge}>
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={16}
+                          color={COLORS.success}
+                        />
+                        <Text style={styles.statusText}>Selected</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Contact Info Section */}
+                  <View style={styles.contactSection}>
+                    <View style={styles.contactRow}>
+                      <View style={styles.contactIcon}>
+                        <Ionicons
+                          name="call"
+                          size={14}
+                          color={COLORS.primary}
+                        />
+                      </View>
+                      <Text style={styles.contactText}>{customer.mobile}</Text>
+                    </View>
+
+                    <View style={styles.contactRow}>
+                      <View style={styles.contactIcon}>
+                        <Ionicons
+                          name="location"
+                          size={14}
+                          color={COLORS.primary}
+                        />
+                      </View>
+                      <Text style={styles.contactText}>{customer.city}</Text>
+                    </View>
+                  </View>
                 </View>
-                {selectedCustomer?.id === customer.id && (
-                  <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-                )}
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
 
           <TouchableOpacity
             style={styles.addCustomerButton}
             onPress={() => setShowAddCustomerModal(true)}
             disabled={isOffline || isUsingCache}
+            activeOpacity={0.8}
           >
-            <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
+            <Ionicons name="add" size={18} color={COLORS.primary} />
             <Text style={styles.addCustomerButtonText}>Add New Customer</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Selected Customer */}
+        {/* Enhanced Selected Customer Card */}
         {selectedCustomer && (
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleContainer}>
-                <View style={styles.sectionIconCircle}>
-                  <Ionicons
-                    name="person-circle-outline"
-                    size={20}
-                    color="#007AFF"
-                  />
-                </View>
-                <Text style={styles.sectionTitle}>Selected Customer</Text>
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.headerIcon}>
+                <Ionicons name="person" size={24} color={COLORS.surface} />
+              </View>
+              <View style={styles.headerText}>
+                <Text style={styles.cardTitle}>Selected Customer</Text>
+                <Text style={styles.cardSubtitle}>
+                  Ready to confirm booking
+                </Text>
               </View>
               <TouchableOpacity
                 style={styles.changeButton}
                 onPress={() => setSelectedCustomer(null)}
+                activeOpacity={0.7}
               >
+                <Ionicons
+                  name="swap-horizontal"
+                  size={16}
+                  color={COLORS.primary}
+                />
                 <Text style={styles.changeButtonText}>Change</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.selectedCustomerDetailsContainer}>
-              <View style={styles.selectedCustomerAvatar}>
-                <Text style={styles.selectedCustomerAvatarText}>
-                  {selectedCustomer.name.charAt(0).toUpperCase()}
-                </Text>
+            {/* Enhanced Customer Details */}
+            <View style={styles.enhancedCustomerContainer}>
+              <View style={styles.customerMainInfo}>
+                <View style={styles.customerAvatar}>
+                  <Text style={styles.customerAvatarText}>
+                    {selectedCustomer.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.customerDetails}>
+                  <Text style={styles.customerName}>
+                    {selectedCustomer.name}
+                  </Text>
+                  <View style={styles.contactInfo}>
+                    <View style={styles.contactItem}>
+                      <Ionicons
+                        name="call"
+                        size={14}
+                        color={COLORS.textSecondary}
+                      />
+                      <Text style={styles.contactText}>
+                        {selectedCustomer.mobile}
+                      </Text>
+                    </View>
+                    <View style={styles.contactItem}>
+                      <Ionicons
+                        name="location"
+                        size={14}
+                        color={COLORS.textSecondary}
+                      />
+                      <Text style={styles.contactText}>
+                        {selectedCustomer.city}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                <View style={styles.statusIndicator}>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={24}
+                    color={COLORS.success}
+                  />
+                </View>
               </View>
-              <View style={styles.selectedCustomerInfo}>
-                <Text style={styles.selectedCustomerName}>
-                  {selectedCustomer.name}
-                </Text>
-                <Text style={styles.selectedCustomerDetails}>
-                  {selectedCustomer.mobile}
-                </Text>
-                <Text style={styles.selectedCustomerDetails}>
-                  {selectedCustomer.city}
-                </Text>
+
+              {/* Customer Stats */}
+              <View style={styles.customerStats}>
+                <View style={styles.statItem}>
+                  <Ionicons name="calendar" size={16} color={COLORS.primary} />
+                  <Text style={styles.statLabel}>Total Bookings</Text>
+                  <Text style={styles.statValue}>5</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Ionicons name="time" size={16} color={COLORS.success} />
+                  <Text style={styles.statLabel}>Status</Text>
+                  <Text style={styles.statValue}>Active</Text>
+                </View>
               </View>
-              <TouchableOpacity
-                style={styles.changeButton}
-                onPress={() => setSelectedCustomer(null)}
-              >
-                <Text style={styles.changeButtonText}>Change</Text>
-              </TouchableOpacity>
+
+              {/* Action Buttons */}
+              <View style={styles.customerActions}>
+                <TouchableOpacity style={styles.cancelButton}>
+                  <Ionicons
+                    name="close-circle"
+                    size={16}
+                    color={COLORS.error}
+                  />
+                  <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.viewHistoryButton}>
+                  <Ionicons name="list" size={16} color={COLORS.primary} />
+                  <Text style={styles.viewHistoryButtonText}>View History</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}
@@ -278,15 +407,19 @@ export default function ConfirmationScreen({ route, navigation }) {
           disabled={
             isOffline || isUsingCache || !selectedCustomer || isCreating
           }
+          activeOpacity={0.8}
         >
           {isCreating ? (
-            <ActivityIndicator color="white" />
+            <ActivityIndicator color={COLORS.surface} />
           ) : (
-            <Text style={styles.confirmButtonText}>
-              {isOffline || isUsingCache
-                ? "Offline Mode - Actions Disabled"
-                : "Confirm Booking"}
-            </Text>
+            <>
+              <Ionicons name="checkmark" size={20} color={COLORS.surface} />
+              <Text style={styles.confirmButtonText}>
+                {isOffline || isUsingCache
+                  ? "Offline Mode - Actions Disabled"
+                  : "Confirm Booking"}
+              </Text>
+            </>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -295,40 +428,75 @@ export default function ConfirmationScreen({ route, navigation }) {
       {showAddCustomerModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add New Customer</Text>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalIcon}>
+                <Ionicons name="person-add" size={24} color={COLORS.primary} />
+              </View>
+              <Text style={styles.modalTitle}>Add New Customer</Text>
+              <Text style={styles.modalSubtitle}>
+                Enter customer details to continue
+              </Text>
+            </View>
 
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Name"
-              value={newCustomer.name}
-              onChangeText={(text) =>
-                setNewCustomer((prev) => ({ ...prev, name: text }))
-              }
-            />
+            <View style={styles.modalForm}>
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="person-outline"
+                  size={18}
+                  color={COLORS.textSecondary}
+                />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Full Name"
+                  placeholderTextColor={COLORS.textTertiary}
+                  value={newCustomer.name}
+                  onChangeText={(text) =>
+                    setNewCustomer((prev) => ({ ...prev, name: text }))
+                  }
+                />
+              </View>
 
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Mobile"
-              value={newCustomer.mobile}
-              onChangeText={(text) =>
-                setNewCustomer((prev) => ({ ...prev, mobile: text }))
-              }
-              keyboardType="phone-pad"
-            />
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="call-outline"
+                  size={18}
+                  color={COLORS.textSecondary}
+                />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Mobile Number"
+                  placeholderTextColor={COLORS.textTertiary}
+                  value={newCustomer.mobile}
+                  onChangeText={(text) =>
+                    setNewCustomer((prev) => ({ ...prev, mobile: text }))
+                  }
+                  keyboardType="phone-pad"
+                />
+              </View>
 
-            <TextInput
-              style={styles.modalInput}
-              placeholder="City"
-              value={newCustomer.city}
-              onChangeText={(text) =>
-                setNewCustomer((prev) => ({ ...prev, city: text }))
-              }
-            />
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="location-outline"
+                  size={18}
+                  color={COLORS.textSecondary}
+                />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="City"
+                  placeholderTextColor={COLORS.textTertiary}
+                  value={newCustomer.city}
+                  onChangeText={(text) =>
+                    setNewCustomer((prev) => ({ ...prev, city: text }))
+                  }
+                />
+              </View>
+            </View>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalCancelButton}
                 onPress={() => setShowAddCustomerModal(false)}
+                activeOpacity={0.7}
               >
                 <Text style={styles.modalCancelButtonText}>Cancel</Text>
               </TouchableOpacity>
@@ -337,11 +505,15 @@ export default function ConfirmationScreen({ route, navigation }) {
                 style={styles.modalAddButton}
                 onPress={handleAddCustomer}
                 disabled={isCreating}
+                activeOpacity={0.8}
               >
                 {isCreating ? (
-                  <ActivityIndicator color="white" />
+                  <ActivityIndicator color={COLORS.surface} />
                 ) : (
-                  <Text style={styles.modalAddButtonText}>Add Customer</Text>
+                  <>
+                    <Ionicons name="add" size={18} color={COLORS.surface} />
+                    <Text style={styles.modalAddButtonText}>Add Customer</Text>
+                  </>
                 )}
               </TouchableOpacity>
             </View>
@@ -353,189 +525,380 @@ export default function ConfirmationScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  // Container
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
   scrollView: {
     flex: 1,
-    padding: SPACING.lg,
   },
-  sectionCard: {
+  scrollViewContent: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.xl,
+  },
+
+  // Cards
+  card: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     ...SHADOWS.light,
   },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  sectionTitleContainer: {
+
+  // Card Headers
+  cardHeader: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: SPACING.lg,
   },
-  sectionIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#f0f0f0",
+  headerIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10,
+    marginRight: SPACING.md,
+    ...SHADOWS.light,
   },
-  sectionTitle: {
-    ...TYPOGRAPHY.h4,
+  headerText: {
+    flex: 1,
+  },
+  cardTitle: {
+    ...TYPOGRAPHY.h3,
     color: COLORS.textPrimary,
+    marginBottom: 2,
   },
-  bookingDetails: {
-    backgroundColor: "#f8f9fa",
-    padding: 15,
-    borderRadius: 8,
+  cardSubtitle: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
   },
-  bookingDetailText: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 5,
+
+  // Booking Info
+  bookingInfo: {
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
   },
-  bold: {
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+  infoLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    marginLeft: SPACING.sm,
+    marginRight: SPACING.sm,
+    minWidth: 80,
+  },
+  infoValue: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textPrimary,
     fontWeight: "600",
-    color: "#333",
+    flex: 1,
   },
+
+  // Search
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.background,
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
     height: 48,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  searchIcon: {
-    marginRight: 10,
-  },
   searchInput: {
     flex: 1,
-    paddingVertical: SPACING.sm,
-    fontSize: 16,
+    ...TYPOGRAPHY.body,
     color: COLORS.textPrimary,
+    marginLeft: SPACING.sm,
   },
-  customerList: {
-    maxHeight: 300,
-    marginBottom: 15,
+
+  // Customer List
+  customerListContainer: {
+    height: 300,
+    marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.xs,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.background,
   },
   customerItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: SPACING.sm,
-    borderRadius: RADIUS.md,
-    marginBottom: SPACING.xs,
-    backgroundColor: COLORS.background,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.light,
+    elevation: 2,
   },
   selectedCustomerItem: {
     backgroundColor: COLORS.primaryLight,
-    borderWidth: 2,
     borderColor: COLORS.primary,
+    borderWidth: 2,
+    ...SHADOWS.medium,
+    elevation: 4,
+    transform: [{ scale: 1.02 }],
   },
   customerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: SPACING.lg,
+    ...SHADOWS.medium,
+    elevation: 3,
+  },
+  customerAvatarText: {
+    ...TYPOGRAPHY.h4,
+    color: COLORS.surface,
+    fontWeight: "700",
+  },
+  // Main content container
+  customerMainContent: {
+    flex: 1,
+    marginLeft: SPACING.md,
+  },
+  // Header with name and status
+  customerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+  customerName: {
+    ...TYPOGRAPHY.h4,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    flex: 1,
+  },
+  // Status badge for selected state
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.success + "20",
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.sm,
+  },
+  statusText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.success,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  // Contact section
+  contactSection: {
+    gap: SPACING.xs,
+  },
+  // Individual contact row
+  contactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 2,
+  },
+  // Contact icon container
+  contactIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary + "15",
     justifyContent: "center",
     alignItems: "center",
     marginRight: SPACING.sm,
   },
-  customerAvatarText: {
-    color: COLORS.surface,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  customerInfo: {
+  // Contact text
+  contactText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    fontWeight: "500",
     flex: 1,
   },
-  customerName: {
-    ...TYPOGRAPHY.body,
-    fontWeight: "600",
-    color: COLORS.textPrimary,
-    marginBottom: 2,
-  },
-  customerDetails: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textSecondary,
-  },
+
+  // Add Customer Button
   addCustomerButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 12,
-    borderRadius: 8,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: "#007AFF",
+    borderColor: COLORS.primary,
     borderStyle: "dashed",
+    backgroundColor: COLORS.primaryLight,
   },
   addCustomerButtonText: {
-    color: "#007AFF",
-    fontSize: 16,
-    fontWeight: "500",
-    marginLeft: 8,
+    ...TYPOGRAPHY.body,
+    color: COLORS.primary,
+    fontWeight: "600",
+    marginLeft: SPACING.xs,
   },
-  selectedCustomerDetailsContainer: {
+
+  // Enhanced Customer Container
+  enhancedCustomerContainer: {
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+
+  // Customer Main Info
+  customerMainInfo: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
-    padding: 15,
-    borderRadius: 8,
+    marginBottom: SPACING.md,
   },
-  selectedCustomerAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#4CAF50",
+  customerAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.success,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 15,
+    marginRight: SPACING.md,
+    ...SHADOWS.light,
   },
-  selectedCustomerAvatarText: {
-    color: "white",
-    fontSize: 20,
-    fontWeight: "600",
+  customerAvatarText: {
+    ...TYPOGRAPHY.h3,
+    color: COLORS.surface,
+    fontWeight: "700",
   },
-  selectedCustomerInfo: {
+  customerDetails: {
     flex: 1,
   },
-  selectedCustomerName: {
-    fontSize: 18,
+  customerName: {
+    ...TYPOGRAPHY.h4,
     fontWeight: "600",
-    color: "#333",
-    marginBottom: 5,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
   },
-  selectedCustomerDetails: {
-    fontSize: 14,
-    color: "#666",
+  contactInfo: {
+    marginTop: SPACING.xs,
+  },
+  contactItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  contactText: {
+    ...TYPOGRAPHY.small,
+    color: COLORS.textSecondary,
+    marginLeft: 4,
+  },
+  statusIndicator: {
+    marginLeft: SPACING.sm,
+  },
+
+  // Customer Stats
+  customerStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
-  changeButton: {
-    padding: 8,
-    borderRadius: 6,
-    backgroundColor: "#f0f0f0",
+  statValue: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textPrimary,
+    fontWeight: "600",
+    marginTop: 2,
   },
-  changeButtonText: {
-    color: "#007AFF",
-    fontSize: 14,
-    fontWeight: "500",
+
+  // Action Buttons
+  customerActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
-  confirmButton: {
-    backgroundColor: COLORS.primary,
-    height: 50,
-    borderRadius: RADIUS.lg,
+  cancelButton: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.error + "10",
+    borderWidth: 1,
+    borderColor: COLORS.error,
+    marginRight: SPACING.sm,
+  },
+  cancelButtonText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.error,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  viewHistoryButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.primary + "10",
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    marginLeft: SPACING.sm,
+  },
+  viewHistoryButtonText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primary,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+
+  // Change Button
+  changeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  changeButtonText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primary,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+
+  // Confirm Button
+  confirmButton: {
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: RADIUS.lg,
     marginBottom: SPACING.lg,
     ...SHADOWS.medium,
   },
@@ -543,10 +906,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.textTertiary,
   },
   confirmButtonText: {
+    ...TYPOGRAPHY.h4,
     color: COLORS.surface,
-    fontSize: 16,
     fontWeight: "600",
+    marginLeft: SPACING.sm,
   },
+
+  // Modal
   modalOverlay: {
     position: "absolute",
     top: 0,
@@ -558,26 +924,56 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 20,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl,
     width: "90%",
     maxWidth: 400,
+    ...SHADOWS.medium,
+  },
+  modalHeader: {
+    alignItems: "center",
+    marginBottom: SPACING.xl,
+  },
+  modalIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: SPACING.md,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 20,
+    ...TYPOGRAPHY.h3,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
     textAlign: "center",
   },
-  modalInput: {
+  modalSubtitle: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+  },
+  modalForm: {
+    marginBottom: SPACING.xl,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+    height: 48,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15,
-    fontSize: 16,
+    borderColor: COLORS.border,
+  },
+  modalInput: {
+    flex: 1,
+    ...TYPOGRAPHY.body,
+    color: COLORS.textPrimary,
+    marginLeft: SPACING.sm,
   },
   modalButtons: {
     flexDirection: "row",
@@ -585,28 +981,36 @@ const styles = StyleSheet.create({
   },
   modalCancelButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: "#f0f0f0",
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.background,
     alignItems: "center",
-    marginRight: 10,
+    marginRight: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   modalCancelButtonText: {
-    color: "#666",
-    fontSize: 16,
-    fontWeight: "500",
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    fontWeight: "600",
   },
   modalAddButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: "#007AFF",
+    flexDirection: "row",
     alignItems: "center",
-    marginLeft: 10,
+    justifyContent: "center",
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primary,
+    marginLeft: SPACING.sm,
+    ...SHADOWS.light,
   },
   modalAddButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "500",
+    ...TYPOGRAPHY.body,
+    color: COLORS.surface,
+    fontWeight: "600",
+    marginLeft: SPACING.xs,
   },
 });
