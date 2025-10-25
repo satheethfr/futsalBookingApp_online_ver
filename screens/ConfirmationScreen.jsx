@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  FlatList,
   TextInput,
   Alert,
   ActivityIndicator,
@@ -41,12 +42,14 @@ export default function ConfirmationScreen({ route, navigation }) {
     city: "",
   });
 
-  const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.mobile.includes(searchQuery) ||
-      customer.city.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCustomers = customers
+    .filter(
+      (customer) =>
+        customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        customer.mobile.includes(searchQuery) ||
+        customer.city.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by customer name
 
   const handleConfirmBooking = async () => {
     if (isOffline || isUsingCache) {
@@ -76,9 +79,7 @@ export default function ConfirmationScreen({ route, navigation }) {
       const result = await addBooking(bookingData);
 
       if (result.success) {
-        // Force refresh of data to ensure UI updates
         await loadData();
-
         Alert.alert("Success", "Booking confirmed successfully!", [
           {
             text: "OK",
@@ -126,60 +127,99 @@ export default function ConfirmationScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* Booking Summary */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleContainer}>
-              <View style={styles.sectionIconCircle}>
-                <Ionicons name="calendar-outline" size={20} color="#007AFF" />
-              </View>
-              <Text style={styles.sectionTitle}>Booking Summary</Text>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+        nestedScrollEnabled={true}
+      >
+        {/* Booking Summary Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.headerIcon}>
+              <Ionicons name="calendar" size={24} color={COLORS.surface} />
+            </View>
+            <View style={styles.headerText}>
+              <Text style={styles.cardTitle}>Booking Summary</Text>
+              <Text style={styles.cardSubtitle}>
+                Review your selected time slots
+              </Text>
             </View>
           </View>
 
-          <View style={styles.bookingDetails}>
-            <Text style={styles.bookingDetailText}>
-              <Text style={styles.bold}>Date:</Text> {selectedDate}
-            </Text>
-            <Text style={styles.bookingDetailText}>
-              <Text style={styles.bold}>Time Slots:</Text>{" "}
-              {selectedTimeSlots.join(", ")}
-            </Text>
-            <Text style={styles.bookingDetailText}>
-              <Text style={styles.bold}>Total Slots:</Text>{" "}
-              {selectedTimeSlots.length}
-            </Text>
+          <View style={styles.bookingInfo}>
+            <View style={styles.infoRow}>
+              <Ionicons
+                name="calendar-outline"
+                size={16}
+                color={COLORS.primary}
+              />
+              <Text style={styles.infoLabel}>Date</Text>
+              <Text style={styles.infoValue}>
+                {new Date(selectedDate).toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </Text>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Ionicons name="time-outline" size={16} color={COLORS.primary} />
+              <Text style={styles.infoLabel}>Time Slots</Text>
+              <Text style={styles.infoValue}>
+                {selectedTimeSlots.join(" • ")}
+              </Text>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Ionicons
+                name="layers-outline"
+                size={16}
+                color={COLORS.primary}
+              />
+              <Text style={styles.infoLabel}>Total Slots</Text>
+              <Text style={styles.infoValue}>
+                {selectedTimeSlots.length} slot
+                {selectedTimeSlots.length !== 1 ? "s" : ""}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Customer Selection */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleContainer}>
-              <View style={styles.sectionIconCircle}>
-                <Ionicons name="people-outline" size={20} color="#007AFF" />
-              </View>
-              <Text style={styles.sectionTitle}>Select Customer</Text>
+        {/* Customer Selection Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.headerIcon}>
+              <Ionicons name="people" size={24} color={COLORS.surface} />
+            </View>
+            <View style={styles.headerText}>
+              <Text style={styles.cardTitle}>Select Customer</Text>
+              <Text style={styles.cardSubtitle}>
+                Choose from existing customers or add new
+              </Text>
             </View>
           </View>
 
           <View style={styles.searchContainer}>
-            <Ionicons
-              name="search-outline"
-              size={20}
-              color="#666"
-              style={styles.searchIcon}
-            />
+            <Ionicons name="search" size={18} color={COLORS.textSecondary} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search customers..."
+              placeholderTextColor={COLORS.textTertiary}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
           </View>
 
-          <View style={styles.customerList}>
+          <ScrollView
+            style={styles.customerListContainer}
+            showsVerticalScrollIndicator={true}
+            bounces={false}
+            nestedScrollEnabled={true}
+          >
             {filteredCustomers.map((customer) => (
               <TouchableOpacity
                 key={customer.id}
@@ -189,80 +229,186 @@ export default function ConfirmationScreen({ route, navigation }) {
                     styles.selectedCustomerItem,
                 ]}
                 onPress={() => setSelectedCustomer(customer)}
+                activeOpacity={0.7}
               >
-                <View style={styles.customerAvatar}>
-                  <Text style={styles.customerAvatarText}>
-                    {customer.name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.customerInfo}>
+                {/* Customer Name Section (2/4 height) */}
+                <View
+                  style={[
+                    styles.nameSection,
+                    selectedCustomer?.id === customer.id &&
+                      styles.selectedNameSection,
+                  ]}
+                >
                   <Text style={styles.customerName}>{customer.name}</Text>
-                  <Text style={styles.customerDetails}>
-                    {customer.mobile} • {customer.city}
-                  </Text>
+                  {selectedCustomer?.id === customer.id && (
+                    <View style={styles.checkmarkContainer}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={24}
+                        color={COLORS.success}
+                      />
+                    </View>
+                  )}
                 </View>
-                {selectedCustomer?.id === customer.id && (
-                  <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-                )}
+
+                {/* Phone Number Section (1/4 height) */}
+                <View
+                  style={[
+                    styles.phoneSection,
+                    selectedCustomer?.id === customer.id &&
+                      styles.selectedPhoneSection,
+                  ]}
+                >
+                  <Text style={styles.phoneText}>{customer.mobile}</Text>
+                </View>
+
+                {/* City Section (1/4 height) */}
+                <View
+                  style={[
+                    styles.citySection,
+                    selectedCustomer?.id === customer.id &&
+                      styles.selectedCitySection,
+                  ]}
+                >
+                  <Text style={styles.cityText}>{customer.city}</Text>
+                </View>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
 
           <TouchableOpacity
             style={styles.addCustomerButton}
             onPress={() => setShowAddCustomerModal(true)}
             disabled={isOffline || isUsingCache}
+            activeOpacity={0.8}
           >
-            <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
+            <Ionicons name="add" size={18} color={COLORS.primary} />
             <Text style={styles.addCustomerButtonText}>Add New Customer</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Selected Customer */}
+        {/* Professional Minimalist Selected Customer Card */}
         {selectedCustomer && (
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleContainer}>
-                <View style={styles.sectionIconCircle}>
-                  <Ionicons
-                    name="person-circle-outline"
-                    size={20}
-                    color="#007AFF"
-                  />
+          <View style={styles.professionalCard}>
+            {/* Header Section */}
+            <View style={styles.professionalHeader}>
+              <View style={styles.professionalTitleSection}>
+                <View style={styles.titleIconContainer}>
+                  <Ionicons name="person" size={18} color={COLORS.primary} />
                 </View>
-                <Text style={styles.sectionTitle}>Selected Customer</Text>
+                <Text style={styles.professionalTitle}>Selected Customer</Text>
               </View>
               <TouchableOpacity
-                style={styles.changeButton}
+                style={styles.professionalChangeButton}
                 onPress={() => setSelectedCustomer(null)}
+                activeOpacity={0.6}
               >
-                <Text style={styles.changeButtonText}>Change</Text>
+                <Ionicons
+                  name="create-outline"
+                  size={16}
+                  color={COLORS.primary}
+                />
+                <Text style={styles.professionalChangeText}>Change</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.selectedCustomerDetailsContainer}>
-              <View style={styles.selectedCustomerAvatar}>
-                <Text style={styles.selectedCustomerAvatarText}>
-                  {selectedCustomer.name.charAt(0).toUpperCase()}
-                </Text>
+            {/* Customer Profile Section */}
+            <View style={styles.professionalProfile}>
+              <View style={styles.professionalAvatarSection}>
+                <View style={styles.professionalAvatar}>
+                  <Text style={styles.professionalAvatarText}>
+                    {selectedCustomer.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.professionalBadge}>
+                  <Text style={styles.professionalBadgeText}>VIP</Text>
+                </View>
               </View>
-              <View style={styles.selectedCustomerInfo}>
-                <Text style={styles.selectedCustomerName}>
+
+              <View style={styles.professionalDetails}>
+                <Text style={styles.professionalCustomerName}>
                   {selectedCustomer.name}
                 </Text>
-                <Text style={styles.selectedCustomerDetails}>
-                  {selectedCustomer.mobile}
+                <Text style={styles.professionalCustomerRole}>
+                  Premium Member
                 </Text>
-                <Text style={styles.selectedCustomerDetails}>
-                  {selectedCustomer.city}
-                </Text>
+
+                <View style={styles.professionalContactSection}>
+                  <View style={styles.professionalContactRow}>
+                    <View style={styles.professionalContactIcon}>
+                      <Ionicons
+                        name="call"
+                        size={12}
+                        color={COLORS.textSecondary}
+                      />
+                    </View>
+                    <Text style={styles.professionalContactText}>
+                      {selectedCustomer.mobile}
+                    </Text>
+                  </View>
+
+                  <View style={styles.professionalContactRow}>
+                    <View style={styles.professionalContactIcon}>
+                      <Ionicons
+                        name="location"
+                        size={12}
+                        color={COLORS.textSecondary}
+                      />
+                    </View>
+                    <Text style={styles.professionalContactText}>
+                      {selectedCustomer.city}
+                    </Text>
+                  </View>
+                </View>
               </View>
-              <TouchableOpacity
-                style={styles.changeButton}
-                onPress={() => setSelectedCustomer(null)}
-              >
-                <Text style={styles.changeButtonText}>Change</Text>
-              </TouchableOpacity>
+            </View>
+
+            {/* Statistics Section */}
+            <View style={styles.professionalStatsSection}>
+              <View style={styles.professionalStatItem}>
+                <View style={styles.professionalStatHeader}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={16}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.professionalStatTitle}>
+                    Total Bookings
+                  </Text>
+                </View>
+                <Text style={styles.professionalStatValue}>
+                  {selectedCustomer.totalBookings || 0}
+                </Text>
+                <View style={styles.professionalStatBar}>
+                  <View
+                    style={[styles.professionalStatBarFill, { width: "85%" }]}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.professionalStatItem}>
+                <View style={styles.professionalStatHeader}>
+                  <Ionicons
+                    name="close-circle-outline"
+                    size={16}
+                    color={COLORS.error}
+                  />
+                  <Text style={styles.professionalStatTitle}>
+                    Cancellations
+                  </Text>
+                </View>
+                <Text style={styles.professionalStatValue}>
+                  {selectedCustomer.totalCancellations || 0}
+                </Text>
+                <View style={styles.professionalStatBar}>
+                  <View
+                    style={[
+                      styles.professionalStatBarFill,
+                      { width: "15%", backgroundColor: COLORS.error },
+                    ]}
+                  />
+                </View>
+              </View>
             </View>
           </View>
         )}
@@ -278,15 +424,19 @@ export default function ConfirmationScreen({ route, navigation }) {
           disabled={
             isOffline || isUsingCache || !selectedCustomer || isCreating
           }
+          activeOpacity={0.8}
         >
           {isCreating ? (
-            <ActivityIndicator color="white" />
+            <ActivityIndicator color={COLORS.surface} />
           ) : (
-            <Text style={styles.confirmButtonText}>
-              {isOffline || isUsingCache
-                ? "Offline Mode - Actions Disabled"
-                : "Confirm Booking"}
-            </Text>
+            <>
+              <Ionicons name="checkmark" size={20} color={COLORS.surface} />
+              <Text style={styles.confirmButtonText}>
+                {isOffline || isUsingCache
+                  ? "Offline Mode - Actions Disabled"
+                  : "Confirm Booking"}
+              </Text>
+            </>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -295,40 +445,75 @@ export default function ConfirmationScreen({ route, navigation }) {
       {showAddCustomerModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add New Customer</Text>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalIcon}>
+                <Ionicons name="person-add" size={24} color={COLORS.primary} />
+              </View>
+              <Text style={styles.modalTitle}>Add New Customer</Text>
+              <Text style={styles.modalSubtitle}>
+                Enter customer details to continue
+              </Text>
+            </View>
 
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Name"
-              value={newCustomer.name}
-              onChangeText={(text) =>
-                setNewCustomer((prev) => ({ ...prev, name: text }))
-              }
-            />
+            <View style={styles.modalForm}>
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="person-outline"
+                  size={18}
+                  color={COLORS.textSecondary}
+                />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Full Name"
+                  placeholderTextColor={COLORS.textTertiary}
+                  value={newCustomer.name}
+                  onChangeText={(text) =>
+                    setNewCustomer((prev) => ({ ...prev, name: text }))
+                  }
+                />
+              </View>
 
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Mobile"
-              value={newCustomer.mobile}
-              onChangeText={(text) =>
-                setNewCustomer((prev) => ({ ...prev, mobile: text }))
-              }
-              keyboardType="phone-pad"
-            />
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="call-outline"
+                  size={18}
+                  color={COLORS.textSecondary}
+                />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Mobile Number"
+                  placeholderTextColor={COLORS.textTertiary}
+                  value={newCustomer.mobile}
+                  onChangeText={(text) =>
+                    setNewCustomer((prev) => ({ ...prev, mobile: text }))
+                  }
+                  keyboardType="phone-pad"
+                />
+              </View>
 
-            <TextInput
-              style={styles.modalInput}
-              placeholder="City"
-              value={newCustomer.city}
-              onChangeText={(text) =>
-                setNewCustomer((prev) => ({ ...prev, city: text }))
-              }
-            />
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="location-outline"
+                  size={18}
+                  color={COLORS.textSecondary}
+                />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="City"
+                  placeholderTextColor={COLORS.textTertiary}
+                  value={newCustomer.city}
+                  onChangeText={(text) =>
+                    setNewCustomer((prev) => ({ ...prev, city: text }))
+                  }
+                />
+              </View>
+            </View>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalCancelButton}
                 onPress={() => setShowAddCustomerModal(false)}
+                activeOpacity={0.7}
               >
                 <Text style={styles.modalCancelButtonText}>Cancel</Text>
               </TouchableOpacity>
@@ -337,11 +522,15 @@ export default function ConfirmationScreen({ route, navigation }) {
                 style={styles.modalAddButton}
                 onPress={handleAddCustomer}
                 disabled={isCreating}
+                activeOpacity={0.8}
               >
                 {isCreating ? (
-                  <ActivityIndicator color="white" />
+                  <ActivityIndicator color={COLORS.surface} />
                 ) : (
-                  <Text style={styles.modalAddButtonText}>Add Customer</Text>
+                  <>
+                    <Ionicons name="add" size={18} color={COLORS.surface} />
+                    <Text style={styles.modalAddButtonText}>Add Customer</Text>
+                  </>
                 )}
               </TouchableOpacity>
             </View>
@@ -353,189 +542,599 @@ export default function ConfirmationScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  // Container
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
   scrollView: {
     flex: 1,
-    padding: SPACING.lg,
   },
-  sectionCard: {
+  scrollViewContent: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.xl,
+  },
+
+  // Cards
+  card: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     ...SHADOWS.light,
   },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  sectionTitleContainer: {
+
+  // Card Headers
+  cardHeader: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: SPACING.lg,
   },
-  sectionIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#f0f0f0",
+  headerIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10,
+    marginRight: SPACING.md,
+    ...SHADOWS.light,
   },
-  sectionTitle: {
-    ...TYPOGRAPHY.h4,
+  headerText: {
+    flex: 1,
+  },
+  cardTitle: {
+    ...TYPOGRAPHY.h3,
     color: COLORS.textPrimary,
+    marginBottom: 2,
   },
-  bookingDetails: {
-    backgroundColor: "#f8f9fa",
-    padding: 15,
-    borderRadius: 8,
+  cardSubtitle: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
   },
-  bookingDetailText: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 5,
+
+  // Booking Info
+  bookingInfo: {
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
   },
-  bold: {
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+  infoLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    marginLeft: SPACING.sm,
+    marginRight: SPACING.sm,
+    minWidth: 80,
+  },
+  infoValue: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textPrimary,
     fontWeight: "600",
-    color: "#333",
+    flex: 1,
   },
+
+  // Search
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.background,
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
     height: 48,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  searchIcon: {
-    marginRight: 10,
-  },
   searchInput: {
     flex: 1,
-    paddingVertical: SPACING.sm,
-    fontSize: 16,
+    ...TYPOGRAPHY.body,
     color: COLORS.textPrimary,
+    marginLeft: SPACING.sm,
   },
-  customerList: {
-    maxHeight: 300,
-    marginBottom: 15,
-  },
-  customerItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: SPACING.sm,
+
+  // Customer List
+  customerListContainer: {
+    height: 300,
+    marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.xs,
     borderRadius: RADIUS.md,
-    marginBottom: SPACING.xs,
     backgroundColor: COLORS.background,
   },
+  customerItem: {
+    flexDirection: "column", // Changed to vertical layout
+    height: 140, // Increased height for better visibility
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.sm,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: "hidden",
+    ...SHADOWS.light,
+    elevation: 2,
+  },
   selectedCustomerItem: {
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: "#F0FDF4", // Green-50
+    borderColor: "#22C55E", // Green-500
     borderWidth: 2,
-    borderColor: COLORS.primary,
+    ...SHADOWS.medium,
+    elevation: 4,
   },
-  customerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
-    justifyContent: "center",
+  // Name section (striking gradient + magical shadow line)
+  nameSection: {
+    height: 60, // Reduced from 80px to 60px for better balance
+    flexDirection: "row",
     alignItems: "center",
-    marginRight: SPACING.sm,
-  },
-  customerAvatarText: {
-    color: COLORS.surface,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  customerInfo: {
-    flex: 1,
+    padding: SPACING.sm, // Reduced padding from SPACING.md to SPACING.sm
+    backgroundColor: COLORS.primary, // Full primary color background
+    borderLeftWidth: 4, // Thicker accent border
+    borderLeftColor: COLORS.success, // Green accent border
+    borderBottomWidth: 3, // Thicker glowing border
+    borderBottomColor: COLORS.success, // Green glow border
+    ...SHADOWS.medium, // Add shadow for depth and impact
+    // Add magical glowing shadow effect to the separating line
+    shadowColor: COLORS.success,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 8, // Higher elevation for more magical depth
   },
   customerName: {
-    ...TYPOGRAPHY.body,
+    ...TYPOGRAPHY.body, // Reduced font size for better fit
+    fontWeight: "700",
+    color: COLORS.surface, // White text on primary background for high contrast
+    flex: 1,
+    numberOfLines: 1,
+    ellipsizeMode: "tail",
+    lineHeight: 18, // Explicit line height to prevent text clipping
+  },
+  // Checkmark container
+  checkmarkContainer: {
+    marginLeft: SPACING.sm,
+    flexShrink: 0,
+  },
+  // Phone section (secondary - light contrast)
+  phoneSection: {
+    height: 40, // Increased from 30px to 40px for better visibility
+    flexDirection: "row",
+    alignItems: "center",
+    padding: SPACING.xs,
+    backgroundColor: "#F8FAFC", // Light gray contrast background
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  phoneText: {
+    ...TYPOGRAPHY.caption, // Reduced font size for better fit
     fontWeight: "600",
     color: COLORS.textPrimary,
-    marginBottom: 2,
+    flex: 1,
+    numberOfLines: 1,
+    ellipsizeMode: "tail",
   },
-  customerDetails: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textSecondary,
+  // City section (secondary - light contrast)
+  citySection: {
+    height: 40, // Increased from 30px to 40px for better visibility
+    flexDirection: "row",
+    alignItems: "center",
+    padding: SPACING.xs,
+    backgroundColor: "#F1F5F9", // Slightly different light gray for variety
   },
+  cityText: {
+    ...TYPOGRAPHY.caption, // Reduced font size for better fit
+    fontWeight: "600",
+    color: COLORS.textPrimary,
+    flex: 1,
+    numberOfLines: 1,
+    ellipsizeMode: "tail",
+  },
+  // Selected state styles for green theme
+  selectedNameSection: {
+    // No border styles needed
+  },
+  selectedPhoneSection: {
+    borderBottomColor: "#D1FAE5", // Green-200
+  },
+  selectedCitySection: {
+    // No border styles needed
+  },
+
+  // Add Customer Button
   addCustomerButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 12,
-    borderRadius: 8,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: "#007AFF",
+    borderColor: COLORS.primary,
     borderStyle: "dashed",
+    backgroundColor: COLORS.primaryLight,
   },
   addCustomerButtonText: {
-    color: "#007AFF",
-    fontSize: 16,
-    fontWeight: "500",
-    marginLeft: 8,
+    ...TYPOGRAPHY.body,
+    color: COLORS.primary,
+    fontWeight: "600",
+    marginLeft: SPACING.xs,
   },
-  selectedCustomerDetailsContainer: {
+
+  // Section Card (reusable card style)
+  sectionCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.light,
+  },
+
+  // Professional Minimalist Card
+  professionalCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: "hidden",
+    ...SHADOWS.light,
+  },
+
+  // Professional Header
+  professionalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: SPACING.lg,
+    backgroundColor: COLORS.background,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+
+  professionalTitleSection: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
-    padding: 15,
-    borderRadius: 8,
   },
-  selectedCustomerAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#4CAF50",
+
+  titleIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary + "15",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 15,
+    marginRight: SPACING.sm,
   },
-  selectedCustomerAvatarText: {
-    color: "white",
-    fontSize: 20,
+
+  professionalTitle: {
+    ...TYPOGRAPHY.h4,
     fontWeight: "600",
+    color: COLORS.textPrimary,
   },
-  selectedCustomerInfo: {
+
+  professionalChangeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.primary + "10",
+  },
+
+  professionalChangeText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primary,
+    fontWeight: "600",
+    marginLeft: SPACING.xs,
+  },
+
+  // Professional Profile
+  professionalProfile: {
+    flexDirection: "row",
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surface,
+  },
+
+  professionalAvatarSection: {
+    position: "relative",
+    marginRight: SPACING.lg,
+  },
+
+  professionalAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    ...SHADOWS.light,
+  },
+
+  professionalAvatarText: {
+    ...TYPOGRAPHY.h2,
+    color: COLORS.surface,
+    fontWeight: "700",
+  },
+
+  professionalBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#FFD700",
+    borderRadius: 8,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: COLORS.surface,
+  },
+
+  professionalBadgeText: {
+    ...TYPOGRAPHY.caption,
+    color: "#B8860B",
+    fontWeight: "700",
+    fontSize: 10,
+  },
+
+  professionalDetails: {
     flex: 1,
+    justifyContent: "center",
   },
-  selectedCustomerName: {
-    fontSize: 18,
+
+  professionalCustomerName: {
+    ...TYPOGRAPHY.h4,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
+  },
+
+  professionalCustomerRole: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primary,
     fontWeight: "600",
-    color: "#333",
-    marginBottom: 5,
+    marginBottom: SPACING.sm,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  selectedCustomerDetails: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 2,
+
+  professionalContactSection: {
+    marginTop: SPACING.xs,
   },
-  changeButton: {
-    padding: 8,
-    borderRadius: 6,
-    backgroundColor: "#f0f0f0",
+
+  professionalContactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: SPACING.xs,
   },
-  changeButtonText: {
-    color: "#007AFF",
-    fontSize: 14,
+
+  professionalContactIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: COLORS.background,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: SPACING.sm,
+  },
+
+  professionalContactText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
     fontWeight: "500",
   },
+
+  // Professional Statistics
+  professionalStatsSection: {
+    backgroundColor: COLORS.background,
+    padding: SPACING.lg,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+
+  professionalStatItem: {
+    marginBottom: SPACING.lg,
+  },
+
+  professionalStatHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+
+  professionalStatTitle: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    fontWeight: "600",
+    marginLeft: SPACING.sm,
+  },
+
+  professionalStatValue: {
+    ...TYPOGRAPHY.h3,
+    fontWeight: "800",
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.sm,
+  },
+
+  professionalStatBar: {
+    height: 4,
+    backgroundColor: COLORS.border,
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+
+  professionalStatBarFill: {
+    height: "100%",
+    backgroundColor: COLORS.primary,
+    borderRadius: 2,
+  },
+
+  // Selected Customer Header
+  selectedCustomerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: SPACING.lg,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+
+  selectedCustomerTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  selectedCustomerTitle: {
+    ...TYPOGRAPHY.h4,
+    fontWeight: "600",
+    color: COLORS.textPrimary,
+    marginLeft: SPACING.sm,
+  },
+
+  // Selected Customer Content
+  selectedCustomerContent: {
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    padding: SPACING.lg,
+  },
+
+  // Main Info Layout
+  selectedCustomerMainInfo: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: SPACING.lg,
+  },
+
+  // Avatar
+  selectedCustomerAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: SPACING.lg,
+    ...SHADOWS.medium,
+  },
+
+  selectedCustomerAvatarText: {
+    ...TYPOGRAPHY.h2,
+    color: COLORS.surface,
+    fontWeight: "700",
+  },
+
+  // Details Container
+  selectedCustomerDetailsContainer: {
+    flex: 1,
+    paddingTop: SPACING.xs,
+  },
+
+  selectedCustomerName: {
+    ...TYPOGRAPHY.h3,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
+  },
+
+  // Contact Info
+  selectedCustomerContactInfo: {
+    marginTop: SPACING.sm,
+  },
+
+  selectedCustomerContactItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+
+  selectedCustomerContactText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    marginLeft: SPACING.sm,
+  },
+
+  // Booking Statistics
+  selectedCustomerStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: SPACING.md,
+    paddingTop: SPACING.lg,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+
+  selectedCustomerStatItem: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginHorizontal: SPACING.xs,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.light,
+  },
+
+  selectedCustomerStatIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.background,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: SPACING.md,
+  },
+
+  selectedCustomerStatContent: {
+    flex: 1,
+  },
+
+  selectedCustomerStatValue: {
+    ...TYPOGRAPHY.h3,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    marginBottom: 2,
+  },
+
+  selectedCustomerStatLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+  },
+
+  // Change Button
+  changeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  changeButtonText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primary,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+
+  // Confirm Button
   confirmButton: {
     backgroundColor: COLORS.primary,
-    height: 50,
-    borderRadius: RADIUS.lg,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: RADIUS.lg,
     marginBottom: SPACING.lg,
     ...SHADOWS.medium,
   },
@@ -543,10 +1142,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.textTertiary,
   },
   confirmButtonText: {
+    ...TYPOGRAPHY.h4,
     color: COLORS.surface,
-    fontSize: 16,
     fontWeight: "600",
+    marginLeft: SPACING.sm,
   },
+
+  // Modal
   modalOverlay: {
     position: "absolute",
     top: 0,
@@ -558,26 +1160,56 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 20,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl,
     width: "90%",
     maxWidth: 400,
+    ...SHADOWS.medium,
+  },
+  modalHeader: {
+    alignItems: "center",
+    marginBottom: SPACING.xl,
+  },
+  modalIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: SPACING.md,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 20,
+    ...TYPOGRAPHY.h3,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
     textAlign: "center",
   },
-  modalInput: {
+  modalSubtitle: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+  },
+  modalForm: {
+    marginBottom: SPACING.xl,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+    height: 48,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15,
-    fontSize: 16,
+    borderColor: COLORS.border,
+  },
+  modalInput: {
+    flex: 1,
+    ...TYPOGRAPHY.body,
+    color: COLORS.textPrimary,
+    marginLeft: SPACING.sm,
   },
   modalButtons: {
     flexDirection: "row",
@@ -585,28 +1217,36 @@ const styles = StyleSheet.create({
   },
   modalCancelButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: "#f0f0f0",
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.background,
     alignItems: "center",
-    marginRight: 10,
+    marginRight: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   modalCancelButtonText: {
-    color: "#666",
-    fontSize: 16,
-    fontWeight: "500",
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    fontWeight: "600",
   },
   modalAddButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: "#007AFF",
+    flexDirection: "row",
     alignItems: "center",
-    marginLeft: 10,
+    justifyContent: "center",
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primary,
+    marginLeft: SPACING.sm,
+    ...SHADOWS.light,
   },
   modalAddButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "500",
+    ...TYPOGRAPHY.body,
+    color: COLORS.surface,
+    fontWeight: "600",
+    marginLeft: SPACING.xs,
   },
 });

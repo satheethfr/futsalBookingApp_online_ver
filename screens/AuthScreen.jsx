@@ -40,6 +40,43 @@ export default function AuthScreen({ onAuthSuccess }) {
     testConnection();
   }, []);
 
+  const handleSignup = async () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Please enter both email and password");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      console.log("Attempting signup with:", { email, password: "***" });
+
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      console.log("Signup response:", { data, error });
+
+      if (error) {
+        console.error("Signup error details:", error);
+        throw error;
+      }
+
+      if (data.user) {
+        Alert.alert(
+          "Account Created",
+          "Account created successfully! You can now login.",
+          [{ text: "OK" }]
+        );
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+      handleError(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password");
@@ -69,7 +106,27 @@ export default function AuthScreen({ onAuthSuccess }) {
 
       if (error) {
         console.error("Login error details:", error);
-        throw error;
+
+        // Provide helpful error message for invalid credentials
+        if (error.message === "Invalid login credentials") {
+          Alert.alert(
+            "Login Failed",
+            "Invalid email or password. Please try:\n\n• demo@a2sportspark.com / demo123 (Demo mode)\n• Or create an account first",
+            [
+              {
+                text: "Try Demo",
+                onPress: () => {
+                  setEmail("demo@a2sportspark.com");
+                  setPassword("demo123");
+                },
+              },
+              { text: "OK" },
+            ]
+          );
+        } else {
+          throw error;
+        }
+        return;
       }
 
       console.log("Login successful:", data.user);
@@ -115,6 +172,18 @@ export default function AuthScreen({ onAuthSuccess }) {
           ) : (
             <Text style={styles.buttonText}>Login</Text>
           )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.button,
+            styles.signupButton,
+            isLoading && styles.buttonDisabled,
+          ]}
+          onPress={handleSignup}
+          disabled={isLoading}
+        >
+          <Text style={styles.signupButtonText}>Create Account</Text>
         </TouchableOpacity>
       </View>
 
@@ -183,6 +252,17 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: COLORS.surface,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  signupButton: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    marginTop: SPACING.sm,
+  },
+  signupButtonText: {
+    color: COLORS.primary,
     fontSize: 16,
     fontWeight: "600",
   },
