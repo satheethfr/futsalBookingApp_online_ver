@@ -42,12 +42,14 @@ export default function ConfirmationScreen({ route, navigation }) {
     city: "",
   });
 
-  const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.mobile.includes(searchQuery) ||
-      customer.city.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCustomers = customers
+    .filter(
+      (customer) =>
+        customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        customer.mobile.includes(searchQuery) ||
+        customer.city.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by customer name
 
   const handleConfirmBooking = async () => {
     if (isOffline || isUsingCache) {
@@ -229,53 +231,46 @@ export default function ConfirmationScreen({ route, navigation }) {
                 onPress={() => setSelectedCustomer(customer)}
                 activeOpacity={0.7}
               >
-                <View style={styles.customerAvatar}>
-                  <Text style={styles.customerAvatarText}>
-                    {customer.name.charAt(0).toUpperCase()}
-                  </Text>
+                {/* Customer Name Section (2/4 height) */}
+                <View
+                  style={[
+                    styles.nameSection,
+                    selectedCustomer?.id === customer.id &&
+                      styles.selectedNameSection,
+                  ]}
+                >
+                  <Text style={styles.customerName}>{customer.name}</Text>
+                  {selectedCustomer?.id === customer.id && (
+                    <View style={styles.checkmarkContainer}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={24}
+                        color={COLORS.success}
+                      />
+                    </View>
+                  )}
                 </View>
 
-                {/* Main Content Section */}
-                <View style={styles.customerMainContent}>
-                  {/* Name and Status Row */}
-                  <View style={styles.customerHeader}>
-                    <Text style={styles.customerName}>{customer.name}</Text>
-                    {selectedCustomer?.id === customer.id && (
-                      <View style={styles.statusBadge}>
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={16}
-                          color={COLORS.success}
-                        />
-                        <Text style={styles.statusText}>Selected</Text>
-                      </View>
-                    )}
-                  </View>
+                {/* Phone Number Section (1/4 height) */}
+                <View
+                  style={[
+                    styles.phoneSection,
+                    selectedCustomer?.id === customer.id &&
+                      styles.selectedPhoneSection,
+                  ]}
+                >
+                  <Text style={styles.phoneText}>{customer.mobile}</Text>
+                </View>
 
-                  {/* Contact Info Section */}
-                  <View style={styles.contactSection}>
-                    <View style={styles.contactRow}>
-                      <View style={styles.contactIcon}>
-                        <Ionicons
-                          name="call"
-                          size={14}
-                          color={COLORS.primary}
-                        />
-                      </View>
-                      <Text style={styles.contactText}>{customer.mobile}</Text>
-                    </View>
-
-                    <View style={styles.contactRow}>
-                      <View style={styles.contactIcon}>
-                        <Ionicons
-                          name="location"
-                          size={14}
-                          color={COLORS.primary}
-                        />
-                      </View>
-                      <Text style={styles.contactText}>{customer.city}</Text>
-                    </View>
-                  </View>
+                {/* City Section (1/4 height) */}
+                <View
+                  style={[
+                    styles.citySection,
+                    selectedCustomer?.id === customer.id &&
+                      styles.selectedCitySection,
+                  ]}
+                >
+                  <Text style={styles.cityText}>{customer.city}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -292,105 +287,127 @@ export default function ConfirmationScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Enhanced Selected Customer Card */}
+        {/* Professional Minimalist Selected Customer Card */}
         {selectedCustomer && (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.headerIcon}>
-                <Ionicons name="person" size={24} color={COLORS.surface} />
-              </View>
-              <View style={styles.headerText}>
-                <Text style={styles.cardTitle}>Selected Customer</Text>
-                <Text style={styles.cardSubtitle}>
-                  Ready to confirm booking
-                </Text>
+          <View style={styles.professionalCard}>
+            {/* Header Section */}
+            <View style={styles.professionalHeader}>
+              <View style={styles.professionalTitleSection}>
+                <View style={styles.titleIconContainer}>
+                  <Ionicons name="person" size={18} color={COLORS.primary} />
+                </View>
+                <Text style={styles.professionalTitle}>Selected Customer</Text>
               </View>
               <TouchableOpacity
-                style={styles.changeButton}
+                style={styles.professionalChangeButton}
                 onPress={() => setSelectedCustomer(null)}
-                activeOpacity={0.7}
+                activeOpacity={0.6}
               >
                 <Ionicons
-                  name="swap-horizontal"
+                  name="create-outline"
                   size={16}
                   color={COLORS.primary}
                 />
-                <Text style={styles.changeButtonText}>Change</Text>
+                <Text style={styles.professionalChangeText}>Change</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Enhanced Customer Details */}
-            <View style={styles.enhancedCustomerContainer}>
-              <View style={styles.customerMainInfo}>
-                <View style={styles.customerAvatar}>
-                  <Text style={styles.customerAvatarText}>
+            {/* Customer Profile Section */}
+            <View style={styles.professionalProfile}>
+              <View style={styles.professionalAvatarSection}>
+                <View style={styles.professionalAvatar}>
+                  <Text style={styles.professionalAvatarText}>
                     {selectedCustomer.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
-                <View style={styles.customerDetails}>
-                  <Text style={styles.customerName}>
-                    {selectedCustomer.name}
-                  </Text>
-                  <View style={styles.contactInfo}>
-                    <View style={styles.contactItem}>
+                <View style={styles.professionalBadge}>
+                  <Text style={styles.professionalBadgeText}>VIP</Text>
+                </View>
+              </View>
+
+              <View style={styles.professionalDetails}>
+                <Text style={styles.professionalCustomerName}>
+                  {selectedCustomer.name}
+                </Text>
+                <Text style={styles.professionalCustomerRole}>
+                  Premium Member
+                </Text>
+
+                <View style={styles.professionalContactSection}>
+                  <View style={styles.professionalContactRow}>
+                    <View style={styles.professionalContactIcon}>
                       <Ionicons
                         name="call"
-                        size={14}
+                        size={12}
                         color={COLORS.textSecondary}
                       />
-                      <Text style={styles.contactText}>
-                        {selectedCustomer.mobile}
-                      </Text>
                     </View>
-                    <View style={styles.contactItem}>
+                    <Text style={styles.professionalContactText}>
+                      {selectedCustomer.mobile}
+                    </Text>
+                  </View>
+
+                  <View style={styles.professionalContactRow}>
+                    <View style={styles.professionalContactIcon}>
                       <Ionicons
                         name="location"
-                        size={14}
+                        size={12}
                         color={COLORS.textSecondary}
                       />
-                      <Text style={styles.contactText}>
-                        {selectedCustomer.city}
-                      </Text>
                     </View>
+                    <Text style={styles.professionalContactText}>
+                      {selectedCustomer.city}
+                    </Text>
                   </View>
                 </View>
-                <View style={styles.statusIndicator}>
+              </View>
+            </View>
+
+            {/* Statistics Section */}
+            <View style={styles.professionalStatsSection}>
+              <View style={styles.professionalStatItem}>
+                <View style={styles.professionalStatHeader}>
                   <Ionicons
-                    name="checkmark-circle"
-                    size={24}
-                    color={COLORS.success}
+                    name="calendar-outline"
+                    size={16}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.professionalStatTitle}>
+                    Total Bookings
+                  </Text>
+                </View>
+                <Text style={styles.professionalStatValue}>
+                  {selectedCustomer.totalBookings || 0}
+                </Text>
+                <View style={styles.professionalStatBar}>
+                  <View
+                    style={[styles.professionalStatBarFill, { width: "85%" }]}
                   />
                 </View>
               </View>
 
-              {/* Customer Stats */}
-              <View style={styles.customerStats}>
-                <View style={styles.statItem}>
-                  <Ionicons name="calendar" size={16} color={COLORS.primary} />
-                  <Text style={styles.statLabel}>Total Bookings</Text>
-                  <Text style={styles.statValue}>5</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Ionicons name="time" size={16} color={COLORS.success} />
-                  <Text style={styles.statLabel}>Status</Text>
-                  <Text style={styles.statValue}>Active</Text>
-                </View>
-              </View>
-
-              {/* Action Buttons */}
-              <View style={styles.customerActions}>
-                <TouchableOpacity style={styles.cancelButton}>
+              <View style={styles.professionalStatItem}>
+                <View style={styles.professionalStatHeader}>
                   <Ionicons
-                    name="close-circle"
+                    name="close-circle-outline"
                     size={16}
                     color={COLORS.error}
                   />
-                  <Text style={styles.cancelButtonText}>Cancel Booking</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.viewHistoryButton}>
-                  <Ionicons name="list" size={16} color={COLORS.primary} />
-                  <Text style={styles.viewHistoryButtonText}>View History</Text>
-                </TouchableOpacity>
+                  <Text style={styles.professionalStatTitle}>
+                    Cancellations
+                  </Text>
+                </View>
+                <Text style={styles.professionalStatValue}>
+                  {selectedCustomer.totalCancellations || 0}
+                </Text>
+                <View style={styles.professionalStatBar}>
+                  <View
+                    style={[
+                      styles.professionalStatBarFill,
+                      { width: "15%", backgroundColor: COLORS.error },
+                    ]}
+                  />
+                </View>
               </View>
             </View>
           </View>
@@ -632,100 +649,100 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   customerItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: SPACING.lg,
+    flexDirection: "column", // Changed to vertical layout
+    height: 140, // Increased height for better visibility
     borderRadius: RADIUS.lg,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
+    overflow: "hidden",
     ...SHADOWS.light,
     elevation: 2,
   },
   selectedCustomerItem: {
-    backgroundColor: COLORS.primaryLight,
-    borderColor: COLORS.primary,
+    backgroundColor: "#F0FDF4", // Green-50
+    borderColor: "#22C55E", // Green-500
     borderWidth: 2,
     ...SHADOWS.medium,
     elevation: 4,
-    transform: [{ scale: 1.02 }],
   },
-  customerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: SPACING.lg,
-    ...SHADOWS.medium,
-    elevation: 3,
-  },
-  customerAvatarText: {
-    ...TYPOGRAPHY.h4,
-    color: COLORS.surface,
-    fontWeight: "700",
-  },
-  // Main content container
-  customerMainContent: {
-    flex: 1,
-    marginLeft: SPACING.md,
-  },
-  // Header with name and status
-  customerHeader: {
+  // Name section (striking gradient + magical shadow line)
+  nameSection: {
+    height: 60, // Reduced from 80px to 60px for better balance
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: SPACING.sm,
+    padding: SPACING.sm, // Reduced padding from SPACING.md to SPACING.sm
+    backgroundColor: COLORS.primary, // Full primary color background
+    borderLeftWidth: 4, // Thicker accent border
+    borderLeftColor: COLORS.success, // Green accent border
+    borderBottomWidth: 3, // Thicker glowing border
+    borderBottomColor: COLORS.success, // Green glow border
+    ...SHADOWS.medium, // Add shadow for depth and impact
+    // Add magical glowing shadow effect to the separating line
+    shadowColor: COLORS.success,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 8, // Higher elevation for more magical depth
   },
   customerName: {
-    ...TYPOGRAPHY.h4,
+    ...TYPOGRAPHY.body, // Reduced font size for better fit
     fontWeight: "700",
+    color: COLORS.surface, // White text on primary background for high contrast
+    flex: 1,
+    numberOfLines: 1,
+    ellipsizeMode: "tail",
+    lineHeight: 18, // Explicit line height to prevent text clipping
+  },
+  // Checkmark container
+  checkmarkContainer: {
+    marginLeft: SPACING.sm,
+    flexShrink: 0,
+  },
+  // Phone section (secondary - light contrast)
+  phoneSection: {
+    height: 40, // Increased from 30px to 40px for better visibility
+    flexDirection: "row",
+    alignItems: "center",
+    padding: SPACING.xs,
+    backgroundColor: "#F8FAFC", // Light gray contrast background
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  phoneText: {
+    ...TYPOGRAPHY.caption, // Reduced font size for better fit
+    fontWeight: "600",
     color: COLORS.textPrimary,
     flex: 1,
+    numberOfLines: 1,
+    ellipsizeMode: "tail",
   },
-  // Status badge for selected state
-  statusBadge: {
+  // City section (secondary - light contrast)
+  citySection: {
+    height: 40, // Increased from 30px to 40px for better visibility
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.success + "20",
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.sm,
+    padding: SPACING.xs,
+    backgroundColor: "#F1F5F9", // Slightly different light gray for variety
   },
-  statusText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.success,
+  cityText: {
+    ...TYPOGRAPHY.caption, // Reduced font size for better fit
     fontWeight: "600",
-    marginLeft: 4,
-  },
-  // Contact section
-  contactSection: {
-    gap: SPACING.xs,
-  },
-  // Individual contact row
-  contactRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 2,
-  },
-  // Contact icon container
-  contactIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: COLORS.primary + "15",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: SPACING.sm,
-  },
-  // Contact text
-  contactText: {
-    ...TYPOGRAPHY.body,
-    color: COLORS.textSecondary,
-    fontWeight: "500",
+    color: COLORS.textPrimary,
     flex: 1,
+    numberOfLines: 1,
+    ellipsizeMode: "tail",
+  },
+  // Selected state styles for green theme
+  selectedNameSection: {
+    // No border styles needed
+  },
+  selectedPhoneSection: {
+    borderBottomColor: "#D1FAE5", // Green-200
+  },
+  selectedCitySection: {
+    // No border styles needed
   },
 
   // Add Customer Button
@@ -748,128 +765,347 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.xs,
   },
 
-  // Enhanced Customer Container
-  enhancedCustomerContainer: {
-    backgroundColor: COLORS.background,
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-  },
-
-  // Customer Main Info
-  customerMainInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: SPACING.md,
-  },
-  customerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.success,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: SPACING.md,
+  // Section Card (reusable card style)
+  sectionCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     ...SHADOWS.light,
   },
-  customerAvatarText: {
-    ...TYPOGRAPHY.h3,
-    color: COLORS.surface,
-    fontWeight: "700",
+
+  // Professional Minimalist Card
+  professionalCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: "hidden",
+    ...SHADOWS.light,
   },
-  customerDetails: {
-    flex: 1,
+
+  // Professional Header
+  professionalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: SPACING.lg,
+    backgroundColor: COLORS.background,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
-  customerName: {
+
+  professionalTitleSection: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  titleIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary + "15",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: SPACING.sm,
+  },
+
+  professionalTitle: {
     ...TYPOGRAPHY.h4,
     fontWeight: "600",
     color: COLORS.textPrimary,
-    marginBottom: SPACING.xs,
-  },
-  contactInfo: {
-    marginTop: SPACING.xs,
-  },
-  contactItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 2,
-  },
-  contactText: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-    marginLeft: 4,
-  },
-  statusIndicator: {
-    marginLeft: SPACING.sm,
   },
 
-  // Customer Stats
-  customerStats: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  statLabel: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  statValue: {
-    ...TYPOGRAPHY.body,
-    color: COLORS.textPrimary,
-    fontWeight: "600",
-    marginTop: 2,
-  },
-
-  // Action Buttons
-  customerActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  cancelButton: {
-    flex: 1,
+  professionalChangeButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.error + "10",
-    borderWidth: 1,
-    borderColor: COLORS.error,
-    marginRight: SPACING.sm,
-  },
-  cancelButtonText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.error,
-    fontWeight: "600",
-    marginLeft: 4,
-  },
-  viewHistoryButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
     borderRadius: RADIUS.sm,
     backgroundColor: COLORS.primary + "10",
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    marginLeft: SPACING.sm,
   },
-  viewHistoryButtonText: {
+
+  professionalChangeText: {
     ...TYPOGRAPHY.caption,
     color: COLORS.primary,
     fontWeight: "600",
-    marginLeft: 4,
+    marginLeft: SPACING.xs,
+  },
+
+  // Professional Profile
+  professionalProfile: {
+    flexDirection: "row",
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surface,
+  },
+
+  professionalAvatarSection: {
+    position: "relative",
+    marginRight: SPACING.lg,
+  },
+
+  professionalAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    ...SHADOWS.light,
+  },
+
+  professionalAvatarText: {
+    ...TYPOGRAPHY.h2,
+    color: COLORS.surface,
+    fontWeight: "700",
+  },
+
+  professionalBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#FFD700",
+    borderRadius: 8,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: COLORS.surface,
+  },
+
+  professionalBadgeText: {
+    ...TYPOGRAPHY.caption,
+    color: "#B8860B",
+    fontWeight: "700",
+    fontSize: 10,
+  },
+
+  professionalDetails: {
+    flex: 1,
+    justifyContent: "center",
+  },
+
+  professionalCustomerName: {
+    ...TYPOGRAPHY.h4,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
+  },
+
+  professionalCustomerRole: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primary,
+    fontWeight: "600",
+    marginBottom: SPACING.sm,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  professionalContactSection: {
+    marginTop: SPACING.xs,
+  },
+
+  professionalContactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: SPACING.xs,
+  },
+
+  professionalContactIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: COLORS.background,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: SPACING.sm,
+  },
+
+  professionalContactText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    fontWeight: "500",
+  },
+
+  // Professional Statistics
+  professionalStatsSection: {
+    backgroundColor: COLORS.background,
+    padding: SPACING.lg,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+
+  professionalStatItem: {
+    marginBottom: SPACING.lg,
+  },
+
+  professionalStatHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+
+  professionalStatTitle: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    fontWeight: "600",
+    marginLeft: SPACING.sm,
+  },
+
+  professionalStatValue: {
+    ...TYPOGRAPHY.h3,
+    fontWeight: "800",
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.sm,
+  },
+
+  professionalStatBar: {
+    height: 4,
+    backgroundColor: COLORS.border,
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+
+  professionalStatBarFill: {
+    height: "100%",
+    backgroundColor: COLORS.primary,
+    borderRadius: 2,
+  },
+
+  // Selected Customer Header
+  selectedCustomerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: SPACING.lg,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+
+  selectedCustomerTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  selectedCustomerTitle: {
+    ...TYPOGRAPHY.h4,
+    fontWeight: "600",
+    color: COLORS.textPrimary,
+    marginLeft: SPACING.sm,
+  },
+
+  // Selected Customer Content
+  selectedCustomerContent: {
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    padding: SPACING.lg,
+  },
+
+  // Main Info Layout
+  selectedCustomerMainInfo: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: SPACING.lg,
+  },
+
+  // Avatar
+  selectedCustomerAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: SPACING.lg,
+    ...SHADOWS.medium,
+  },
+
+  selectedCustomerAvatarText: {
+    ...TYPOGRAPHY.h2,
+    color: COLORS.surface,
+    fontWeight: "700",
+  },
+
+  // Details Container
+  selectedCustomerDetailsContainer: {
+    flex: 1,
+    paddingTop: SPACING.xs,
+  },
+
+  selectedCustomerName: {
+    ...TYPOGRAPHY.h3,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
+  },
+
+  // Contact Info
+  selectedCustomerContactInfo: {
+    marginTop: SPACING.sm,
+  },
+
+  selectedCustomerContactItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+
+  selectedCustomerContactText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    marginLeft: SPACING.sm,
+  },
+
+  // Booking Statistics
+  selectedCustomerStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: SPACING.md,
+    paddingTop: SPACING.lg,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+
+  selectedCustomerStatItem: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginHorizontal: SPACING.xs,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.light,
+  },
+
+  selectedCustomerStatIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.background,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: SPACING.md,
+  },
+
+  selectedCustomerStatContent: {
+    flex: 1,
+  },
+
+  selectedCustomerStatValue: {
+    ...TYPOGRAPHY.h3,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    marginBottom: 2,
+  },
+
+  selectedCustomerStatLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
   },
 
   // Change Button

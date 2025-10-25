@@ -1564,14 +1564,14 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   selectedDay: {
-    backgroundColor: "#059669", // Dark green - explicit color
-    borderWidth: 2,
-    borderColor: "#10B981", // Primary green border
-    shadowColor: "#059669",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
+  //   backgroundColor: "#45987e", // Dark green - explicit color
+  //   borderWidth: 2,
+  //   borderColor: "#10B981", // Primary green border
+  //   shadowColor: "#059669",
+  //   shadowOffset: { width: 0, height: 3 },
+  //   shadowOpacity: 0.2,
+  //   shadowRadius: 6,
+  //   elevation: 4,
   },
   // A2 Sports Park Header Styles
   headerSection: {
